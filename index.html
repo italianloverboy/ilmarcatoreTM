@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IL MARCATORE TM - CRACKTRO NATIVO</title>
+    <title>IL MARCATORE TM - CRACKTRO LASER</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
         
@@ -11,7 +11,6 @@
             margin: 0; padding: 0; height: 100%; width: 100%; 
             background: #000; overflow: hidden; 
             font-family: 'Press Start 2P', monospace; 
-            cursor: pointer;
         }
         
         #amiga-canvas { display: block; width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
@@ -20,9 +19,35 @@
             position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
             display: flex; align-items: center; justify-content: center; 
             background: #000; color: #0f0; z-index: 10; text-align: center; line-height: 2; 
+            pointer-events: none; /* Fondamentale: il click deve passare attraverso l'overlay */
         }
         .blink { animation: blinker 1s linear infinite; }
         @keyframes blinker { 50% { opacity: 0; } }
+
+        /* IL MIRINO LASER: un buco nel tessuto della realtà */
+        #laser-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px;  /* Area cliccabile intorno alla scritta */
+            height: 100px;
+            overflow: hidden;
+            z-index: 9999;
+            opacity: 0.001; /* Quasi invisibile ma presente per il browser */
+            border: none;
+        }
+
+        /* L'iframe di Strudel posizionato chirurgicamente */
+        #strudel-laser {
+            position: absolute;
+            width: 1280px;
+            height: 720px;
+            /* Spostiamo l'iframe in modo che il tasto PLAY (in alto a destra) sia al centro del nostro container */
+            right: -30px; 
+            top: -5px;
+            border: none;
+        }
     </style>
 </head>
 <body>
@@ -35,64 +60,41 @@
 
     <canvas id="amiga-canvas"></canvas>
 
-    <!-- Carichiamo Strudel NATIVAMENTE tramite script module -->
-    <script type="module">
-        import { initStrudel, evalStrudel } from 'https://cdn.skypack.dev/@strudel/web';
+    <!-- La trappola laser -->
+    <div id="laser-container">
+        <iframe id="strudel-laser" allow="autoplay; audio"></iframe>
+    </div>
 
-        // 1. Definiamo i campioni RolandTR808 a mano per evitare il problema dell'altra volta
-        // Li prendiamo direttamente dal CDN di Strudel
-        const tr808Samples = {
-            'bd': 'bd.wav',
-            'sn': 'sn.wav',
-            'hh': 'hh.wav',
-            'oh': 'oh.wav',
-            'cp': 'cp.wav',
-            'rim': 'rim.wav'
-        };
+    <textarea id="my-code" style="display:none">
+const ratchet = register('ratchet', (pat) => pat.sometimes(ply(2)))
+samples({'myvox':['0.wav','1.wav','2.wav','3.wav','4.wav','5.wav','6.wav','7.wav','8.wav','9.wav','10.wav','11.wav','12.wav']},'https://cdn.jsdelivr.net/gh/italianloverboy/uuh@main/samples/');
+setcpm(75/4);
+const bPatt = "<[c2 ~ g1 ~] [c2 ~ g1 f1] [bb1 ~ f1 ~] [bb1 ~ g1 bb1]>";
+const sPatt = "<[~ c3 ~ c3] [~ c3 ~ c3] [~ f3 ~ f3] [~ f3 ~ f3]>";
+const hookPatt = "<[c4 ~ d4 eb4] [g4 ~ ~ ~] [f4 ~ eb4 d4] [c4 ~ ~ ~]>";
+stack(
+  s("[~ ~ bd ~] [~ ~ bd ~]").bank("RolandTR808").lpf(800).room(0.2).gain(1.2), 
+  s("[~ sn ~ ~] [~ sn ~ ~]").bank("RolandTR808").room(0.4).gain(0.8),
+  s("hh*8").bank("RolandTR808").decay(0.02).gain(0.4).pan(sine.slow(4)),
+  note(bPatt).s("saw").lpf(400).lpq(10).decay(0.4).gain(0.9),
+  note(sPatt).s("triangle").adsr(0.01,0.1,0,0.1).room(0.3).gain(0.6),
+  s("myvox").n(choose(0,2,4,6)).speed(0.8).crush(choose(4,8)).pan(rand).gain(0.3), 
+  s("myvox").n(choose(1,3,5,7)).struct("~ ~ ~ x").speed(1.2).room(0.8).gain(0.2),
+  note("<[[c4 ~ ~ ~] [~ g4 ~ ~] [f4 ~ ~ ~] [~ c4 ~ ~]]!4 [[bb3 ~ ~ ~] [~ f4 ~ ~] [eb4 ~ ~ ~] [~ bb3 ~ ~]]!4>").s("gm_pan_flute").room(0.6).delay(0.4).gain(0.3),
+  note("<[[c3m ~ ~ ~] [f3 ~ ~ ~] [bb2 ~ ~ ~] [eb3 ~ ~ ~]]!4>").s("gm_telephone").room(0.5).delay(0.5).delayfb(0.4).gain(0.25),
+  note(hookPatt).s("saw").lpf(sine.range(500,2000).slow(8)).lpq(15).delay(0.6).delayt(0.75).room(0.5).gain(0.4)
+)
+    </textarea>
 
-        const code = `
-            // Carichiamo i tuoi campioni personalizzati
-            samples({'myvox':['0.wav','1.wav','2.wav','3.wav','4.wav','5.wav','6.wav','7.wav','8.wav','9.wav','10.wav','11.wav','12.wav']}, 'https://cdn.jsdelivr.net/gh/italianloverboy/uuh@main/samples/');
-            
-            // Forziamo i campioni 808 che mancavano nella versione nativa
-            samples(${JSON.stringify(tr808Samples)}, 'https://strudel.cc/samples/RolandTR808/');
+    <script>
+        function preloadStrudel() {
+            const code = document.getElementById('my-code').value.trim();
+            const b64 = btoa(unescape(encodeURIComponent(code)));
+            // Usiamo il formato che carica il codice ma aspetta il PLAY
+            document.getElementById('strudel-laser').src = 'https://strudel.cc/?' + b64;
+        }
+        preloadStrudel();
 
-            setcpm(75/4);
-            const bPatt = "<[c2 ~ g1 ~] [c2 ~ g1 f1] [bb1 ~ f1 ~] [bb1 ~ g1 bb1]>";
-            const sPatt = "<[~ c3 ~ c3] [~ c3 ~ c3] [~ f3 ~ f3] [~ f3 ~ f3]>";
-            const hookPatt = "<[c4 ~ d4 eb4] [g4 ~ ~ ~] [f4 ~ eb4 d4] [c4 ~ ~ ~]>";
-            
-            stack(
-                s("[~ ~ bd ~] [~ ~ bd ~]").bank("RolandTR808").lpf(800).room(0.2).gain(1.2), 
-                s("[~ sn ~ ~] [~ sn ~ ~]").bank("RolandTR808").room(0.4).gain(0.8),
-                s("hh*8").bank("RolandTR808").decay(0.02).gain(0.4).pan(sine.slow(4)),
-                note(bPatt).s("saw").lpf(400).lpq(10).decay(0.4).gain(0.9),
-                note(sPatt).s("triangle").adsr(0.01,0.1,0,0.1).room(0.3).gain(0.6),
-                s("myvox").n(choose(0,2,4,6)).speed(0.8).crush(choose(4,8)).pan(rand).gain(0.3), 
-                s("myvox").n(choose(1,3,5,7)).struct("~ ~ ~ x").speed(1.2).room(0.8).gain(0.2),
-                note("<[[c4 ~ ~ ~] [~ g4 ~ ~] [f4 ~ ~ ~] [~ c4 ~ ~]]!4 [[bb3 ~ ~ ~] [~ f4 ~ ~] [eb4 ~ ~ ~] [~ bb3 ~ ~]]!4>").s("gm_pan_flute").room(0.6).delay(0.4).gain(0.3),
-                note("<[[c3m ~ ~ ~] [f3 ~ ~ ~] [bb2 ~ ~ ~] [eb3 ~ ~ ~]]!4>").s("gm_telephone").room(0.5).delay(0.5).delayfb(0.4).gain(0.25),
-                note(hookPatt).s("saw").lpf(sine.range(500,2000).slow(8)).lpq(15).delay(0.6).delayt(0.75).room(0.5).gain(0.4)
-            )
-        `;
-
-        let started = false;
-        document.body.addEventListener('click', async () => {
-            if (started) return;
-            started = true;
-
-            // Sblocchiamo l'audio
-            await initStrudel();
-            
-            // Eseguiamo il codice
-            evalStrudel(code);
-
-            // Avviamo la grafica
-            document.getElementById('overlay').style.display = 'none';
-            requestAnimationFrame(draw);
-        });
-
-        // --- MOTORE GRAFICO AMIGA ---
         const canvas = document.getElementById('amiga-canvas');
         const ctx = canvas.getContext('2d');
         let width, height;
@@ -109,7 +111,7 @@
             stars.push({ x: Math.random()*2000-1000, y: Math.random()*2000-1000, z: Math.random()*2000 });
         }
 
-        const scrollText = "   *** IL MARCATORE TM PRESENTS *** NATIVE ENGINE VERSION *** NO IFRAME BULLSHIT *** 100% COMPATIBLE *** ENJOY THE VIBE ***   ";
+        const scrollText = "   *** IL MARCATORE TM PRESENTS *** LASER TARGETING VERSION *** NO MORE SILENCE *** 100% AMIGA VIBES *** JUST CLICK TO START ***   ";
         let scrollX = width;
         let time = 0;
 
@@ -161,6 +163,18 @@
             }
             requestAnimationFrame(draw);
         }
+
+        let started = false;
+        // Quando l'iframe riceve il click, la finestra principale perde il focus (blur)
+        window.addEventListener('blur', function() {
+            if (!started) {
+                started = true;
+                document.getElementById('overlay').style.display = 'none';
+                // Nascondiamo il laser così l'utente può interagire con il resto
+                document.getElementById('laser-container').style.display = 'none';
+                requestAnimationFrame(draw);
+            }
+        });
     </script>
 </body>
 </html>
