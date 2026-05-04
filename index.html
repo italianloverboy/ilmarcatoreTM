@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IL MARCATORE TM - CRACKTRO FINAL</title>
+    <title>IL MARCATORE TM - CRACKTRO DEFINITIVE</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
         
@@ -36,8 +36,8 @@
     <canvas id="amiga-canvas"></canvas>
 
     <script type="module">
-        // USIAMO LA VERSIONE LATEST CHE È GARANTITA SUL CDN
-        import { initStrudel, evalStrudel } from 'https://cdn.jsdelivr.net/npm/@strudel/web/+esm';
+        // IMPORTANTE: La funzione corretta è 'evaluate', non 'evalStrudel'
+        import { initStrudel, evaluate } from 'https://cdn.jsdelivr.net/npm/@strudel/web/+esm';
 
         const tr808Map = {
             'bd': 'bd.wav', 'sn': 'sn.wav', 'hh': 'hh.wav', 'oh': 'oh.wav',
@@ -73,17 +73,21 @@
             isRunning = true;
 
             try {
+                // Sblocca audio
                 await initStrudel();
-                evalStrudel(strudelCode);
+                // Esegue musica
+                await evaluate(strudelCode);
+
+                // Nasconde scritta e avvia grafica
                 document.getElementById('overlay').style.display = 'none';
                 requestAnimationFrame(draw);
             } catch (e) {
                 console.error("Strudel Error:", e);
-                // Se fallisce, permettiamo di riprovare al prossimo click
                 isRunning = false;
             }
         });
 
+        // --- GRAFICA ---
         const canvas = document.getElementById('amiga-canvas');
         const ctx = canvas.getContext('2d');
         let width, height;
@@ -100,7 +104,7 @@
             stars.push({ x: Math.random()*2000-1000, y: Math.random()*2000-1000, z: Math.random()*2000 });
         }
 
-        const scrollText = "   *** IL MARCATORE TM PRESENTS *** FINAL NATIVE VERSION *** NO MORE 404 ERRORS *** STABLE ENGINE LOADED *** CLICK TO START THE NOISE ***   ";
+        const scrollText = "   *** IL MARCATORE TM PRESENTS *** DEFINITIVE NATIVE VERSION *** ALL BUGS SQUASHED *** NO MORE SILENCE *** CLICK TO ROCK ***   ";
         let scrollX = width;
         let time = 0;
 
