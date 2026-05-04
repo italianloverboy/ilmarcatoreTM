@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IL MARCATORE TM - CRACKTRO ULTIMATE</title>
+    <title>IL MARCATORE TM - CRACKTRO FINAL</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
         
@@ -35,22 +35,17 @@
 
     <canvas id="amiga-canvas"></canvas>
 
-    <!-- Usiamo la distribuzione ufficiale di Strudel per il web -->
     <script type="module">
-        // Importiamo solo quello che ci serve per far suonare il pezzo
-        import { initStrudel, evalStrudel } from 'https://cdn.jsdelivr.net/npm/@strudel/web@0.7.1/+esm';
+        // USIAMO LA VERSIONE LATEST CHE È GARANTITA SUL CDN
+        import { initStrudel, evalStrudel } from 'https://cdn.jsdelivr.net/npm/@strudel/web/+esm';
 
-        // Mappa dei suoni TR808 (indispensabile per la versione nativa)
         const tr808Map = {
             'bd': 'bd.wav', 'sn': 'sn.wav', 'hh': 'hh.wav', 'oh': 'oh.wav',
             'cp': 'cp.wav', 'rim': 'rim.wav', 'cb': 'cb.wav', 'cl': 'cl.wav'
         };
 
         const strudelCode = `
-            // Carichiamo i tuoi campioni
             samples({'myvox':['0.wav','1.wav','2.wav','3.wav','4.wav','5.wav','6.wav','7.wav','8.wav','9.wav','10.wav','11.wav','12.wav']}, 'https://cdn.jsdelivr.net/gh/italianloverboy/uuh@main/samples/');
-            
-            // Carichiamo la TR808 dai server ufficiali
             samples(${JSON.stringify(tr808Map)}, 'https://strudel.cc/samples/RolandTR808/');
 
             setcpm(75/4);
@@ -78,21 +73,17 @@
             isRunning = true;
 
             try {
-                // Sblocchiamo il motore audio
                 await initStrudel();
-                // Eseguiamo il pezzo
                 evalStrudel(strudelCode);
-
-                // Nascondiamo l'overlay e via alla grafica
                 document.getElementById('overlay').style.display = 'none';
                 requestAnimationFrame(draw);
             } catch (e) {
                 console.error("Strudel Error:", e);
+                // Se fallisce, permettiamo di riprovare al prossimo click
                 isRunning = false;
             }
         });
 
-        // --- GRAFICA AMIGA ---
         const canvas = document.getElementById('amiga-canvas');
         const ctx = canvas.getContext('2d');
         let width, height;
@@ -109,7 +100,7 @@
             stars.push({ x: Math.random()*2000-1000, y: Math.random()*2000-1000, z: Math.random()*2000 });
         }
 
-        const scrollText = "   *** IL MARCATORE TM PRESENTS *** ULTIMATE NATIVE VERSION *** NO MORE IFRAMES *** NO MORE LIES *** 100% AMIGA FEELING *** CLICK TO ENJOY ***   ";
+        const scrollText = "   *** IL MARCATORE TM PRESENTS *** FINAL NATIVE VERSION *** NO MORE 404 ERRORS *** STABLE ENGINE LOADED *** CLICK TO START THE NOISE ***   ";
         let scrollX = width;
         let time = 0;
 
