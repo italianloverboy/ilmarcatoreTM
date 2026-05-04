@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IL MARCATORE TM - THE ABSOLUTE INTEGRITY (1080p)</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; background: #000; overflow: hidden; font-family: 'VT323', monospace; }
+        canvas { display: block; image-rendering: pixelated; margin: auto; background: #000; }
+        
+        /* Header Amiga Style */
+        #header-ui { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 120px;
+            background: linear-gradient(to bottom, #333 0%, #111 100%);
+            border-bottom: 5px solid #ff4400; display: none; z-index: 100;
+            display: flex; align-items: center; justify-content: space-around;
+            color: #fff; font-size: 36px; text-transform: uppercase;
+            box-shadow: 0px 5px 15px rgba(0,0,0,0.8);
+        }
+        .ui-segment { display: flex; flex-direction: column; align-items: center; }
+        .bar-container { width: 400px; height: 28px; background: #000; border: 3px solid #fff; margin-top: 8px; }
+        #hp-bar { width: 100%; height: 100%; background: linear-gradient(to bottom, #ff0000, #660000); }
+        #jacket-bar { width: 0%; height: 100%; background: linear-gradient(to bottom, #ff4400, #882200); }
+
+        #overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, #000, #001a33);
+            color: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 200; text-align: center; padding: 100px; box-sizing: border-box;
+        }
+        #overlay h1 { font-size: 160px; color: #ff4400; text-shadow: 10px 10px #000; margin: 0; letter-spacing: 10px; }
+        #overlay p { font-size: 56px; line-height: 1.4; color: #fff; max-width: 1500px; }
+        .blink { animation: blink 0.6s infinite; color: #00ffff; font-size: 64px; margin-top: 60px; cursor: pointer; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+        #guru-box {
+            position: absolute; top: 30%; left: 10%; width: 80%; height: 240px;
+            border: 12px solid #ff0000; background: #000; color: #ff0000;
+            display: none; justify-content: center; align-items: center;
+            font-size: 80px; z-index: 300; animation: flash-red 0.1s infinite;
+            text-align: center; line-height: 1.2;
+        }
+        @keyframes flash-red { 0% { border-color: #ff0000; } 100% { border-color: #000; } }
+    </style>
+</head>
+<body>
+    <div id="header-ui">
+        <div class="ui-segment">
+            <span style="color: #ff5555;">BODY INTEGRITY</span>
+            <div class="bar-container"><div id="hp-bar"></div></div>
+        </div>
+        <div class="ui-segment">
+            <span style="color: #ffaa00;">JACKET POWER</span>
+            <div class="bar-container"><div id="jacket-bar"></div></div>
+        </div>
+        <div class="ui-segment" style="font-size: 40px; color: #00ffff;">
+            <div id="lives-ui">LIVES: 3</div>
+            <div id="parts-ui" style="color: #00ff00;">PARTS: 00000</div>
+        </div>
+    </div>
+
+    <div id="guru-box">SOFTWARE FAILURE<br>GURU MEDITATION #00000004.0000AAC0</div>
+
+    <div id="overlay">
+        <div id="content">
+            <h1>IL MARCATORE TM</h1>
+            <p style="font-size: 70px; color: #00ffff;">THE ABSOLUTE RESTORATION</p>
+            <p class="blink">CLICK TO INITIATE REBOOT</p>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const header = document.getElementById('header-ui');
+        const overlay = document.getElementById('overlay');
+        const guruBox = document.getElementById('guru-box');
+
+        const SCREEN_W = 1920;
+        const SCREEN_H = 1080;
+        const WORLD_W = 20000; // Livello a lunghezza fissa (Vittoria alla fine)
+        canvas.width = SCREEN_W;
+        canvas.height = SCREEN_H;
+
+        let gameState = 'MENU';
+        let introStep = 0;
+        const introStory = [
+            { h: "AMIGA 1990", p: "Un giovane hacker indossa un giubbino ARANCIONE radioattivo.<br>Hardware Failure istantanea. Donne in estasi.<br>Nasce la leggenda del Marcatore." },
+            { h: "THE MANSION", p: "Anno 2000. Il giubbino viene sigillato nella villa del Produttore.<br>Il Marcatore sceglie una vita normale... fino ad oggi." },
+            { h: "REBOOT", p: "I Robot hanno rapito sua figlia.<br>È tempo di riattivare i circuiti.<br>Recupera il giubbino. Distruggi i Robot. Salva il futuro." }
+        ];
+
+        let gameTime = 0, lives = 3, parts = 0, camera = { x: 0 };
+        let bullets = [], enemyBullets = [], particles = [], clothes = [], bubbles = [], keys = {};
+        let mousePos = { x: 0, y: 0 };
+        let guruTimer = 0;
+
+        // Fisica Superfrog 1080p
+        const GRAVITY = 0.6;
+        const JUMP_FORCE = -20;
+        let SPEED = 8;
+
+        let player = {
+            x: 400, y: 700, w: 60, h: 120, vx: 0, vy: 0,
+            hp: 100, jacketHp: 0, hasJacket: false, grounded: false, climbing: false, attachedTo: null,
+            facing: 1, anim: 0, squash: 1, stretch: 1, stun: 0, energy: 0, hasSkates: false,
+            bubble: null, bubbleTimer: 0, shakeScore: 0, lastShakeDir: 0
+        };
+
+        let level = { platforms: [], poles: [], vines: [] };
+
+        function generateLevel() {
+            const TILE = 32;
+            level = { platforms: [{ x: 0, y: 960, w: WORLD_W, h: 120 }], poles: [], vines: [] };
+            let lastX = 800;
+            for(let i=0; i<30; i++) {
+                // Posizionamento coerente su griglia 32px
+                let px = Math.floor((lastX + 400 + Math.random()*300) / TILE) * TILE;
+                let py = Math.floor((500 + Math.random()*250) / TILE) * TILE;
+                let pw = Math.floor((300 + Math.random()*400) / TILE) * TILE;
+                level.platforms.push({ x: px, y: py, w: pw, h: TILE });
+                
+                if (Math.random() > 0.4) {
+                    level.poles.push({ x: px + pw/2, y: py, h: 960 - py, lit: true });
+                } else if (Math.random() > 0.7) {
+                    level.vines.push({ x: px + 100, y: 0, len: 15 + Math.floor(Math.random()*10), angle: 0 });
+                }
+                lastX = px + pw;
+            }
+        }
+
+        let entities = [];
+        function initEntities() {
+            generateLevel(); // Genera il mondo procedurale
+            entities = [
+                { type: 'jacket', x: 1200, y: 400, w: 100, h: 100, active: true },
+                { type: 'skates', x: 2500, y: 880, w: 60, h: 60, active: true },
+                { type: 'mansion', x: WORLD_W - 800, y: 550, w: 600, h: 400, active: true }
+            ];
+        }
+
+        window.addEventListener('keydown', e => { 
+            if (gameState !== 'PLAY') nextIntro();
+            else if (gameState === 'GAMEOVER') startGame();
+            keys[e.code] = true; 
+        });
+        window.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mousePos.x = e.clientX - rect.left;
+            mousePos.y = e.clientY - rect.top;
+        });
+        window.addEventListener('mousedown', (e) => { 
+            if (gameState === 'MENU') nextIntro(); 
+            else if (gameState === 'PLAY' && player.stun <= 0) {
+                player.charging = true; 
+            }
+        });
+        window.addEventListener('mouseup', (e) => {
+            if (gameState === 'PLAY' && player.charging) {
+                player.charging = false;
+                if (player.energy >= 100 && player.hasJacket) {
+                    triggerGuru();
+                    player.jacketHp -= 50; 
+                } else if (player.energy > 5) {
+                    // Calcolo traiettoria verso il Mouse (Mirino)
+                    let dx = (mousePos.x + camera.x) - (player.x + 30);
+                    let dy = mousePos.y - (player.y + 40);
+                    let angle = Math.atan2(dy, dx);
+                    let speed = 10 + player.energy/5;
+
+                    if (player.hasJacket) {
+                        bullets.push({
+                            x: player.x + 30, y: player.y + 40, 
+                            vx: Math.cos(angle) * speed, 
+                            vy: Math.sin(angle) * speed, 
+                            power: player.energy
+                        });
+                        player.jacketHp -= player.energy / 3;
+                    } else {
+                        bullets.push({
+                            x: player.x + 30, y: player.y + 40, 
+                            vx: Math.cos(angle) * 4, vy: Math.sin(angle) * 4, 
+                            life: 12, power: player.energy, melee: true
+                        });
+                    }
+                }
+                player.energy = 0;
+            }
+        });
+        window.addEventListener('keyup', e => keys[e.code] = false);
+
+        function nextIntro() {
+            if (introStep < introStory.length) {
+                overlay.querySelector('#content').innerHTML = `<h1 style="color: #ff4400">${introStory[introStep].h}</h1><p>${introStory[introStep].p}</p><p class="blink">CLICK TO ADVANCE STORY</p>`;
+                introStep++;
+            } else startGame();
+        }
+
+        function startGame() {
+            gameState = 'PLAY'; overlay.style.display = 'none'; header.style.display = 'flex';
+            lives = 3; parts = 0; resetLevel(); 
+        }
+
+        function resetLevel() {
+            player.x = 400; player.y = 700; player.hp = 100; player.jacketHp = 0; player.hasJacket = false;
+            player.vx = 0; player.vy = 0; player.attachedTo = null; player.climbing = false;
+            camera.x = 0; player.stun = 0; SPEED = 8;
+            bullets = []; enemyBullets = []; clothes = []; particles = []; bubbles = [];
+            initEntities(); // Reset mostri e powerup
+        }
+
+        function spawnEnemy() {
+            let women = entities.filter(e => e.type === 'woman').length;
+            let robots = entities.filter(e => e.type === 'robot').length;
+            if (women >= 5 && robots >= 4) return; // Limite rigido
+
+            let spawnX = player.x + (Math.random() > 0.5 ? 1300 : -1300);
+            if (spawnX < 0) spawnX = player.x + 1300;
+            
+            let type = (women < 5 && Math.random() > 0.5) ? 'woman' : (robots < 4 ? 'robot' : 'woman');
+            
+            let womanColors = null;
+            if (type === 'woman') {
+                const hairColors = ["#6d4c41", "#fdd835", "#212121", "#bf360c"];
+                const skinTones = ["#ffdbac", "#f1c27d", "#8d5524", "#e0ac69"];
+                const dressColors = ["#009688", "#e91e63", "#3f51b5", "#ff9800"];
+                const bottomColors = ["#5e35b1", "#4527a0", "#1a237e", "#311b92"];
+                womanColors = {
+                    hair: hairColors[Math.floor(Math.random()*hairColors.length)],
+                    skin: skinTones[Math.floor(Math.random()*skinTones.length)],
+                    dress: dressColors[Math.floor(Math.random()*dressColors.length)],
+                    stripe: "#fff",
+                    bottom: bottomColors[Math.floor(Math.random()*bottomColors.length)],
+                    shoes: "#f44336"
+                };
+            }
+
+            entities.push({ 
+                type, x: spawnX, y: 960, w: 60, h: 120, state: 'spawning', timer: 60, 
+                hp: 1, dir: (Math.random() > 0.5 ? 1 : -1), inv: ['bra','panties','dress'], 
+                timerIA: 0, attached: false, colors: womanColors, bubbleCooldown: 0
+            });
+        }
+
+        function triggerGuru() {
+            guruTimer = 150; guruBox.style.display = 'flex';
+            entities.forEach(en => { if(en.type==='robot'||en.type==='woman') en.hp = -1; });
+            spawnParticles(player.x+30, player.y+60, "#ff0000");
+        }
+
+        function spawnParticles(x, y, color) {
+            for(let i=0; i<15; i++) {
+                particles.push({ x, y, vx: (Math.random()-0.5)*30, vy: (Math.random()-0.5)*30, life: 40, color });
+            }
+        }
+
+        function drawBubble(x, y, text) {
+            let cx = x - camera.x;
+            ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.ellipse(cx+150, y-150, 180, 70, 0, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(cx+70, y-70); ctx.lineTo(cx+100, y-90); ctx.lineTo(cx+50, y-40); ctx.fill();
+            ctx.fillStyle = "#000"; ctx.font = "32px VT323"; ctx.textAlign = "center"; ctx.fillText(text, cx+150, y-140);
+        }
+
+        function update() {
+            if (gameState !== 'PLAY') return;
+            gameTime++;
+            if (gameTime % 120 === 0) spawnEnemy();
+            if (guruTimer > 0) { guruTimer--; if(guruTimer===0) guruBox.style.display='none'; }
+
+            // Movement & Backtracking
+            let currentSpeed = SPEED;
+            let attachedCount = entities.filter(e => e.attached).length;
+            if (attachedCount > 0) currentSpeed *= 0.5; // Rallentamento da abbraccio
+
+            if (player.stun > 0) { player.stun--; player.vx = 0; }
+            else if (!player.attachedTo && !player.climbing) {
+                if (keys['KeyA']) { 
+                    player.vx = -currentSpeed; player.facing = -1; player.anim += 0.2; 
+                    if (player.lastShakeDir === 1) player.shakeScore += 25; // Più sensibile
+                    player.lastShakeDir = -1;
+                }
+                else if (keys['KeyD']) { 
+                    player.vx = currentSpeed; player.facing = 1; player.anim += 0.2; 
+                    if (player.lastShakeDir === -1) player.shakeScore += 25; // Più sensibile
+                    player.lastShakeDir = 1;
+                }
+                else if (player.grounded) player.vx *= 0.85; 
+                if (keys['Space'] && player.grounded) { player.vy = JUMP_FORCE; player.grounded = false; player.stretch = 1.3; }
+                player.vy += GRAVITY;
+            } else if (player.attachedTo) {
+                let v = player.attachedTo;
+                player.x = v.x + Math.sin(v.angle)*(v.len*32)-30;
+                player.y = v.y + Math.cos(v.angle)*(v.len*32)-60;
+                if (keys['Space'] || keys['KeyA'] || keys['KeyD'] || keys['KeyW'] || keys['KeyS']) { player.attachedTo = null; player.vy = -15; }
+            } else if (player.climbing) {
+                player.vx = 0;
+                if (keys['KeyW']) player.vy = -6; else if (keys['KeyS']) player.vy = 6; else player.vy = 0;
+                if (keys['Space'] || keys['KeyA'] || keys['KeyD']) { player.climbing = false; player.vy = -8; }
+                
+                // Limite Scalata Soft: ignora piattaforme e permette di sormontare
+                level.poles.forEach(p => {
+                    if (Math.abs(player.x+30 - p.x) < 40) {
+                        if (player.y < p.y - 80) player.y = p.y - 80; 
+                        if (player.y + player.h > p.y + p.h) { player.y = p.y + p.h - player.h; player.climbing = false; }
+                    }
+                });
+            }
+
+            player.x += player.vx; player.y += player.vy;
+            player.stretch += (1 - player.stretch) * 0.12; player.squash += (1 - player.squash) * 0.12;
+
+            // Platforms & Scale Limit
+            player.grounded = false;
+            if (!player.climbing) {
+                level.platforms.forEach(p => {
+                    if (player.x + player.w > p.x && player.x < p.x + p.w && player.y + player.h > p.y && player.y < p.y + p.h) {
+                        if (player.vy > 0 && player.y + player.h - player.vy <= p.y) {
+                            if(!player.grounded) player.squash = 1.3;
+                            player.y = p.y - player.h; player.vy = 0; player.grounded = true;
+                        }
+                    }
+                });
+            }
+
+            level.poles.forEach(p => {
+                if (Math.abs(player.x+30 - p.x) < 40 && player.y+player.h > p.y && player.y < p.y+p.h) {
+                    if (keys['KeyW']) player.climbing = true;
+                }
+            });
+
+            level.vines.forEach(v => {
+                v.angle = Math.sin(gameTime*0.04) * 0.8;
+                // Controllo aggancio su tutta la lunghezza della liana
+                for(let segment=0; segment<=v.len; segment++) {
+                    let tx = v.x + Math.sin(v.angle)*(segment*32);
+                    let ty = v.y + Math.cos(v.angle)*(segment*32);
+                    if (!player.attachedTo && Math.hypot(player.x+30-tx, player.y+60-ty) < 60 && keys['KeyW']) {
+                        player.attachedTo = v;
+                        player.climbSegment = segment; // Memorizza punto di aggancio
+                        break;
+                    }
+                }
+            });
+
+            // Camera Follow & Backtrack
+            camera.x = player.x - SCREEN_W/2;
+            if (camera.x < 0) camera.x = 0; else if (camera.x > WORLD_W - SCREEN_W) camera.x = WORLD_W - SCREEN_W;
+
+            // Energy & Guru Charge (Rallentata 5x per Guru Meditation)
+            if (player.charging) { 
+                player.energy = Math.min(100, player.energy + 0.3); // Carica molto più lenta
+                if (gameTime % 2 === 0) {
+                    let ang = Math.random() * Math.PI * 2;
+                    particles.push({ 
+                        x: player.x + 30 + Math.cos(ang)*200, 
+                        y: player.y + 60 + Math.sin(ang)*200, 
+                        vx: -Math.cos(ang)*10, vy: -Math.sin(ang)*10, 
+                        life: 20, color: "#00ffff" 
+                    });
+                }
+            } 
+            else { 
+                player.energy = 0; 
+                // Rigenerazione Giubbino se fermo
+                if (player.hasJacket && Math.abs(player.vx) < 1 && player.grounded) {
+                    player.jacketHp = Math.min(100, player.jacketHp + 0.05);
+                }
+            }
+            
+            // Perdita Giubbino se energia zero
+            if (player.hasJacket && player.jacketHp <= 0) {
+                player.hasJacket = false;
+                spawnParticles(player.x+30, player.y+60, "#ff4400");
+                player.bubble = "che due collioni"; player.bubbleTimer = 120;
+            }
+            entities = entities.filter(en => en.hp > 0 || en.type === 'jacket' || en.type === 'skates');
+                            entities.forEach(en => {
+                if (en.state === 'spawning') {
+                    en.timer--; en.y -= 2;
+                    if (en.timer <= 0) en.state = 'patrol';
+                    return;
+                }                
+                if (en.type === 'woman') {
+                    if (en.stun > 0) { en.stun--; en.y = 960; return; }
+                    if (en.bubbleCooldown > 0) en.bubbleCooldown--;
+                    
+                    // Rallentamento generale donne
+                    let womanSpeed = (en.state === 'berserk') ? 5 : 3;
+                    
+                    // Logica Reset Interessi (Raycast Stretto: non vedono SOPRA i piedi del player)
+                    let distH = Math.abs(player.x - en.x);
+                    let isAbove = (player.y + player.h) < (en.y + 20); 
+                    if (!player.hasJacket || distH > 800 || isAbove || player.climbing || player.attachedTo) {
+                        if (en.attached) { en.attached = false; }
+                        en.bubbleTimer = 0; // Reset fumetto se perde vista
+                        if (en.state === 'undressing' || en.state === 'berserk') {
+                            en.state = 'retrieving'; 
+                        }
+                    }
+
+                    if (en.attached) {
+                        // Posizione sulla schiena
+                        en.x = player.x - (15 * player.facing); 
+                        en.y = player.y;
+                        // Succhiano amore solo se fermo
+                        if (Math.abs(player.vx) < 0.1 && Math.abs(player.vy) < 0.1) {
+                            player.hp = Math.min(100, player.hp + 0.3);
+                            player.jacketHp -= 0.8;
+                        }
+                        
+                        // Meccanica Shake-off
+                        if (player.shakeScore > 100) {
+                            en.attached = false; en.stun = 180; en.state = 'retrieving';
+                            player.shakeScore = 0; spawnParticles(en.x, en.y, "#ff00ff");
+                        }
+                        
+                        if (player.jacketHp <= 0) { 
+                            en.attached = false; player.hasJacket = false; 
+                            spawnParticles(player.x+30, player.y+60, "#ff4400");
+                            player.bubble = "che due collioni"; player.bubbleTimer = 150;
+                        }
+                        return;
+                    }
+                    player.shakeScore = Math.max(0, player.shakeScore - 0.5); // Decadimento shake
+
+                    if (en.state === 'retrieving') {
+                        let target = clothes.find(c => c.onGround && !c.picked);
+                        if (target) {
+                            en.x += Math.sign(target.x - en.x) * womanSpeed;
+                            if (Math.abs(en.x - target.x) < 20) {
+                                target.picked = true;
+                                en.inv.push(target.type);
+                                if (en.inv.length >= 3) en.state = 'patrol';
+                            }
+                        } else {
+                            if (en.inv.length === 0) en.state = 'escaping';
+                            else en.state = 'patrol';
+                        }
+                    } else if (en.state === 'escaping') {
+                        en.x += en.dir * 6;
+                        if (en.x < camera.x - 100 || en.x > camera.x + SCREEN_W + 100) en.hp = -1;
+                    } else if (en.state === 'patrol') {
+                        if (player.hasJacket && Math.abs(player.x-en.x) < 600 && !player.climbing && !isAbove) {
+                            en.state = 'undressing';
+                            if (en.bubbleCooldown <= 0) {
+                                let uCount = 2 + Math.floor(Math.random()*5);
+                                en.bubble = "U" + "u".repeat(uCount) + "h il Marcatore™";
+                                en.bubbleTimer = 90;
+                                en.bubbleCooldown = 600; // Calmiere: 10 secondi di silenzio
+                            }
+                        }
+                        en.x += en.dir * womanSpeed; if (Math.random() < 0.01) en.dir *= -1;
+                    } else if (en.state === 'undressing') {
+                        en.timerIA--;
+                        if (en.timerIA <= 0 && en.inv.length > 0) {
+                            let type = en.inv.shift();
+                            // Lancio Mirato (vx e vy verso il player)
+                            let dx = player.x - en.x;
+                            let dy = player.y - en.y;
+                            let angle = Math.atan2(dy, dx);
+                            clothes.push({
+                                x: en.x, y: en.y+30, 
+                                vx: Math.cos(angle) * 12, 
+                                vy: Math.sin(angle) * 12 - 5, // Parabola leggera
+                                type: type, onGround: false
+                            });
+                            // Cadenza proporzionale alla distanza (20-60 frame)
+                            en.timerIA = Math.max(30, Math.min(60, distH / 10));
+                        } else if (en.inv.length === 0) {
+                            en.state = 'berserk';
+                        }
+                    } else if (en.state === 'berserk') {
+                        en.x += Math.sign(player.x-en.x) * womanSpeed;
+                        if (gameTime % 30 === 0) {
+                            particles.push({ x: en.x+25, y: en.y-20, vx: 0, vy: -2, life: 60, color: "#ff0000", isHeart: true });
+                        }
+                    }
+                    
+                    if (Math.hypot(player.x-en.x, player.y-en.y) < 80 && player.hasJacket && !en.attached && !player.climbing) en.attached = true;
+                }
+                if (en.type === 'robot') {
+                    if (en.frozen > 0) { en.frozen--; return; }
+                    if (en.hp === 1) en.hp = 100; // Inizializzazione HP
+                    
+                    let dist = Math.abs(player.x - en.x);
+                    let sameHeight = Math.abs(player.y - en.y) < 150;
+                    
+                    if (dist < 800 && sameHeight) {
+                        en.dir = Math.sign(player.x - en.x);
+                        en.shootTimer--;
+                        if (en.shootTimer < 30) en.eyesRed = true;
+                        if (en.shootTimer <= 0) {
+                            enemyBullets.push({x: en.x + (en.dir * 40), y: en.y + 40, vx: en.dir * 8, vy: 0});
+                            en.shootTimer = 180; en.eyesRed = false;
+                        }
+                        en.x += en.dir * 2.5;
+                    } else {
+                        en.eyesRed = false; en.x += en.dir * 3;
+                        if (gameTime % 200 === 0) en.dir *= -1;
+                    }
+
+                    // Danno Fisso, Feedback e Knockback
+                    if (Math.abs(player.x - en.x) < 50 && Math.abs(player.y - en.y) < 100) {
+                        player.hp -= 15;
+                        player.vx = -player.facing * 20; // Salto indietro
+                        player.vy = -10;
+                        player.stun = 20;
+                        if (player.hasSkates && Math.random() > 0.5) {
+                            player.hasSkates = false; SPEED = 8;
+                            spawnParticles(player.x, player.y, "#fff"); // Pattini distrutti
+                        }
+                    }
+                    
+                    if (player.vy > 0 && Math.abs(player.x - en.x) < 80 && player.y + player.h > en.y && player.y + player.h < en.y + 40) {
+                        player.vy = -18; en.hp -= 20; en.frozen = 60; spawnParticles(en.x, en.y, "#00ffff");
+                    }
+                }
+                if (en.type === 'jacket' && en.active && Math.hypot(player.x-en.x, player.y-en.y) < 120) {
+                    player.hasJacket = true; en.active = false; player.jacketHp = 100;
+                    player.bubble = "HARDWARE READY!"; player.bubbleTimer = 60; spawnParticles(en.x, en.y, "#ff4400");
+                }
+                if (en.type === 'skates' && en.active && Math.hypot(player.x-en.x, player.y-en.y) < 120) {
+                    player.hasSkates = true; en.active = false; SPEED = 12;
+                    player.bubble = "FAST AS AMIGA!"; player.bubbleTimer = 60; spawnParticles(en.x, en.y, "#00ff00");
+                }
+                
+                // Despawn Coerente (fuori schermo)
+                if (Math.abs(en.x - player.x) > 2000) en.hp = -1;
+            });
+
+            // Bullets (EMP Pulse Lineare)
+            bullets.forEach((b, i) => {
+                if (b.melee) {
+                    b.life--; if (b.life <= 0) bullets.splice(i, 1);
+                } else {
+                    b.x += b.vx; b.y += b.vy;
+                    if (b.x < camera.x || b.x > camera.x + SCREEN_W || b.y < 0 || b.y > SCREEN_H) bullets.splice(i, 1);
+                }
+
+                level.poles.forEach(p => { if(Math.abs(b.x-p.x)<50 && b.y < p.y+50) p.lit = false; });
+                entities.forEach(en => { 
+                    if(en.type==='robot' && Math.hypot(b.x-en.x, b.y-en.y)<(b.melee?110:100)){
+                        en.hp -= (b.power || 20);
+                        en.frozen = 60 + (b.power || 0); 
+                        if(!b.melee) bullets.splice(i,1); 
+                        spawnParticles(en.x, en.y, "#00ffff");
+                    } 
+                });
+            });
+            enemyBullets.forEach((eb, i) => { eb.x += eb.vx; if(Math.abs(player.x-eb.x)<60 && Math.abs(player.y-eb.y)<100){player.hp-=10; enemyBullets.splice(i,1);} });
+            
+            // Logica Vestiti (Caduta e Raccolta)
+            clothes = clothes.filter(c => !c.picked);
+            clothes.forEach((c, i) => { 
+                if (!c.onGround) {
+                    c.vy += 0.4; // Gravità vestiti
+                    c.x += c.vx; c.y += c.vy;
+                    if (c.y >= 930) { c.y = 930; c.onGround = true; c.vx = 0; c.vy = 0; }
+                }
+                // Il Marcatore può "rubare" i vestiti - Solo micro-stutter se colpito
+                if (Math.hypot(player.x - c.x, player.y+50 - c.y) < 60) {
+                    if (!c.onGround) { player.stun = 15; clothes.splice(i,1); } // Micro-stutter
+                    else { c.picked = true; parts += 5; } // Punti se li rubi da terra
+                }
+            });
+            particles.forEach((p, i) => { p.x+=p.vx; p.y+=p.vy; p.life--; if(p.life<=0) particles.splice(i,1); });
+
+            if (player.y > SCREEN_H + 200 || player.hp <= 0) {
+                lives--; if (lives < 0) { gameState = 'GAMEOVER'; overlay.style.display = 'flex'; overlay.querySelector('#content').innerHTML = "<h1>GAME OVER</h1><p class='blink'>CLICK TO REBOOT</p>"; }
+                else resetLevel();
+            }
+
+            // Vittoria: Villa del Produttore
+            if (player.x > WORLD_W - 900) {
+                gameState = 'MENU'; introStep = 0;
+                overlay.style.display = 'flex';
+                overlay.querySelector('#content').innerHTML = "<h1>MISSION COMPLETE</h1><p>Hai raggiunto la villa del Produttore.<br>Il giubbino è di nuovo al sicuro.<br>Amiga 4Ever.</p><p class='blink'>CLICK TO PLAY AGAIN</p>";
+            }
+            document.getElementById('hp-bar').style.width = player.hp + "%";
+            document.getElementById('jacket-bar').style.width = player.jacketHp + "%";
+            document.getElementById('lives-ui').innerText = "LIVES: " + lives;
+            document.getElementById('parts-ui').innerText = "PARTS: " + parts;
+        }
+
+        function drawHumanoid(x, y, color, type, anim, extra = {}) {
+            let cx = x - camera.x;
+            let sx = (type === 'player') ? player.stretch : 1;
+            let sy = (type === 'player') ? player.squash : 1;
+            ctx.save(); ctx.translate(cx + 30, y + 120); ctx.scale(sx, sy); ctx.translate(-30, -120);
+            
+            // Testa & Dettagli (Nerd / Donna / Robot)
+            ctx.fillStyle = (type === 'robot') ? "#777" : "#ffdbac";
+            ctx.fillRect(10, 0, 40, 40);
+            
+            if (type === 'player') {
+                ctx.fillStyle = "#000"; ctx.fillRect(10, 0, 40, 10); // Capelli SEMPRE presenti
+                if (!player.hasJacket) {
+                    ctx.fillStyle = "#fff"; ctx.fillRect(10, 10, 12, 10); ctx.fillRect(28, 10, 12, 10); // Occhiali
+                    ctx.fillStyle = (player.charging && gameTime % 10 < 5) ? "#00ffff" : "#000"; // Occhi sbarrati se carica
+                    ctx.fillRect(14, 14, 4, 4); ctx.fillRect(32, 14, 4, 4);
+                    ctx.fillStyle = "#000"; ctx.fillRect(22, 14, 6, 2); // Ponte
+                } else if (player.charging) {
+                    // Occhi sbarrati con giubbino
+                    ctx.fillStyle = "#fff"; ctx.fillRect(12, 12, 14, 12); ctx.fillRect(34, 12, 14, 12);
+                    ctx.fillStyle = (gameTime % 10 < 5) ? "#00ffff" : "#000";
+                    ctx.fillRect(16, 16, 6, 6); ctx.fillRect(38, 16, 6, 6);
+                }
+            } else if (type === 'woman') {
+                // Design procedurale e proporzionato
+                let c = extra.colors || { hair: "#6d4c41", skin: "#ffdbac", dress: "#009688", stripe: "#fff", bottom: "#5e35b1", shoes: "#f44336" };
+                let isNude = extra.invCount === 0;
+                
+                ctx.fillStyle = c.hair; ctx.fillRect(10, -5, 40, 50); // Capelli
+                ctx.fillStyle = c.skin; ctx.fillRect(15, 5, 30, 30); // Faccia
+                ctx.fillStyle = "#ff0000"; ctx.fillRect(25, 28, 10, 4); // Rossetto
+                
+                // Busto (120px totali)
+                ctx.fillStyle = isNude ? c.skin : c.dress;
+                ctx.fillRect(0, 40, 50, 46);
+                if (!isNude) { ctx.fillStyle = c.stripe; ctx.fillRect(0, 60, 50, 4); } // Riga dettaglio
+                
+                if (type === 'woman' && extra.attached) {
+                    ctx.fillStyle = "rgba(255,255,255,0.4)"; // Braccia
+                    ctx.fillRect(-20, 50, 90, 15);
+                }
+                
+                // Gambe (Viola o pelle)
+                let m = Math.sin(anim) * 12;
+                ctx.fillStyle = isNude ? c.skin : c.bottom;
+                ctx.fillRect(5+m, 86, 18, 30); ctx.fillRect(28-m, 86, 18, 30);
+                
+                // Scarpe
+                ctx.fillStyle = c.shoes; 
+                ctx.fillRect(2+m, 116, 24, 12); ctx.fillRect(26-m, 116, 24, 12);
+                ctx.restore(); return;
+            } else if (type === 'robot') {
+                // Occhi Rossi solo se in modalità attacco (rilevamento)
+                ctx.fillStyle = extra.eyesRed ? "#ff0000" : "#ffff00"; 
+                ctx.fillRect(15, 15, 6, 6); ctx.fillRect(40, 15, 6, 6); 
+            } else { ctx.fillStyle = "#000"; ctx.fillRect(10, 0, 40, 10); } // Capelli Player
+            
+            // Busto / Giubbino (Migliorato con dettagli)
+            ctx.fillStyle = color;
+            if (type === 'player' && player.hasJacket) {
+                ctx.fillRect(-5, 35, 70, 55); // Giubbino più sagomato
+                ctx.fillStyle = "#ff6600"; ctx.fillRect(-5, 35, 70, 10); // Colletto
+                ctx.fillStyle = "rgba(255,255,255,0.4)"; ctx.fillRect(28, 45, 4, 45); // Zip
+            } else ctx.fillRect(0, 40, 60, 50);
+
+            // Gambe / Pattini (Migliorati)
+            let m = Math.sin(anim) * 15;
+            ctx.fillStyle = type === 'robot' ? "#333" : "#0000aa";
+            ctx.fillRect(5+m, 90, 22, 30); ctx.fillRect(33-m, 90, 22, 30);
+            if (type === 'player' && player.hasSkates) {
+                ctx.fillStyle = "#fff"; ctx.fillRect(2+m, 110, 28, 15); ctx.fillRect(30-m, 110, 28, 15); // Scarpa
+                ctx.fillStyle = "#00ffff"; 
+                ctx.fillRect(4+m, 125, 6, 6); ctx.fillRect(22+m, 125, 6, 6); // Ruote
+                ctx.fillRect(32-m, 125, 6, 6); ctx.fillRect(50-m, 125, 6, 6);
+            }
+            ctx.restore();
+        }
+
+        function drawJacketIcon(ctx, x, y) {
+            ctx.fillStyle = "#ff4400"; ctx.fillRect(x, y+10, 100, 70); 
+            ctx.fillStyle = "#fff"; ctx.fillRect(x+48, y+10, 4, 70); 
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, SCREEN_W, SCREEN_H);
+            ctx.fillStyle = "#000511"; ctx.fillRect(0,0,SCREEN_W, SCREEN_H);
+            
+            // PARALLASSE INTEGRALE 1080p (V11 Restore)
+            for(let i=0; i<10; i++) {
+                let bx = i*1000 - camera.x*0.3;
+                ctx.fillStyle = "#001a33"; ctx.fillRect(bx, 150, 500, 1000);
+                ctx.fillStyle = "#004488"; for(let j=0; j<8; j++) ctx.fillRect(bx+60, 250+j*130, 40, 40);
+            }
+            for(let i=0; i<15; i++) {
+                let bx = i*600 - camera.x*0.6;
+                ctx.fillStyle = "#002b4d"; ctx.fillRect(bx, 300, 250, 800);
+                ctx.fillStyle = "#00ffff"; for(let j=0; j<6; j++) ctx.fillRect(bx+40, 400+j*110, 15, 15);
+            }
+
+            // Livello
+            level.platforms.forEach(p => {
+                ctx.fillStyle = "#222"; ctx.fillRect(p.x-camera.x, p.y, p.w, p.h);
+                ctx.strokeStyle = "#555"; ctx.lineWidth=5; ctx.strokeRect(p.x-camera.x, p.y, p.w, p.h);
+                ctx.fillStyle = "#00ffff"; ctx.fillRect(p.x-camera.x, p.y, p.w, 12); // Neon
+            });
+
+            level.poles.forEach(p => {
+                ctx.fillStyle = "#555"; ctx.fillRect(p.x-camera.x, p.y, 20, p.h);
+                if (p.lit) {
+                    ctx.fillStyle = "#ffff00"; ctx.beginPath(); ctx.arc(p.x+10-camera.x, p.y, 40, 0, Math.PI*2); ctx.fill();
+                    let grad = ctx.createRadialGradient(p.x+10-camera.x, p.y, 0, p.x+10-camera.x, p.y+400, 600);
+                    grad.addColorStop(0, "rgba(255,255,0,0.15)"); grad.addColorStop(1, "rgba(255,255,0,0)");
+                    ctx.fillStyle = grad; ctx.beginPath(); ctx.moveTo(p.x+10-camera.x, p.y);
+                    ctx.lineTo(p.x-200-camera.x, SCREEN_H); ctx.lineTo(p.x+220-camera.x, SCREEN_H); ctx.fill();
+                }
+            });
+
+            level.vines.forEach(v => {
+                let tx = v.x + Math.sin(v.angle)*(v.len*32);
+                let ty = v.y + Math.cos(v.angle)*(v.len*32);
+                ctx.strokeStyle = "#00ff00"; ctx.lineWidth=6; ctx.beginPath(); ctx.moveTo(v.x-camera.x, v.y); ctx.lineTo(tx-camera.x, ty); ctx.stroke();
+            });
+
+            // Entità
+            entities.forEach(en => {
+                if (en.type === 'jacket' && en.active) drawJacketIcon(ctx, en.x-camera.x, en.y);
+                else if (en.type === 'skates' && en.active) { ctx.fillStyle = "#fff"; ctx.fillRect(en.x-camera.x, en.y, 60, 30); }
+                else if (en.type === 'mansion') { 
+                    ctx.fillStyle = "#444"; ctx.fillRect(en.x-camera.x, en.y, en.w, en.h); 
+                    ctx.fillStyle = "#ff4400"; ctx.fillRect(en.x-camera.x+200, en.y+200, 200, 200); // Porta
+                    ctx.fillStyle = "#fff"; ctx.font = "60px VT323"; ctx.fillText("THE PRODUCER", en.x-camera.x+300, en.y-20);
+                }
+                else if (en.type === 'woman') {
+                    let color = en.attached ? "#ffdbac" : (en.stun > 0 ? "#aaa" : "#ff00ff");
+                    drawHumanoid(en.x, en.y, color, 'woman', gameTime*0.1, {invCount: en.inv.length, attached: en.attached, colors: en.colors});
+                    if (en.bubbleTimer > 0) { drawBubble(en.x, en.y, en.bubble); en.bubbleTimer--; }
+                }
+                else if (en.type === 'robot') drawHumanoid(en.x, en.y, en.frozen > 0 ? "#0ff" : "#555", 'robot', gameTime*0.05, {eyesRed: en.eyesRed});
+            });
+
+            // Player, Bullets & Bubbles
+            if (player.stun > 0) ctx.globalAlpha = 0.5;
+            drawHumanoid(player.x, player.y, player.hasJacket ? "#ff4400" : "#444", 'player', player.anim);
+            ctx.globalAlpha = 1;
+
+            if (player.bubbleTimer > 0) { drawBubble(player.x, player.y, player.bubble); player.bubbleTimer--; }
+
+            enemyBullets.forEach(eb => { ctx.fillStyle = "#ff0000"; ctx.fillRect(eb.x-camera.x, eb.y, 24, 8); });
+            
+            // Rendering Impulsi EMP
+            clothes.forEach(c => { 
+                ctx.fillStyle = "#fff"; 
+                if (c.type === 'bra') { // Reggiseno
+                    ctx.beginPath(); ctx.arc(c.x-camera.x, c.y, 8, 0, Math.PI*2); ctx.fill();
+                    ctx.beginPath(); ctx.arc(c.x-camera.x+15, c.y, 8, 0, Math.PI*2); ctx.fill();
+                } else if (c.type === 'panties') { // Mutandine
+                    ctx.beginPath(); ctx.moveTo(c.x-camera.x, c.y); ctx.lineTo(c.x-camera.x+20, c.y); ctx.lineTo(c.x-camera.x+10, c.y+15); ctx.fill();
+                } else { // Vestito
+                    ctx.fillRect(c.x-camera.x, c.y, 25, 25);
+                }
+            });
+
+            bullets.forEach(b => { 
+                ctx.fillStyle = b.melee ? "rgba(0,255,255,0.6)" : "#00ffff"; 
+                if (b.melee) {
+                    ctx.beginPath(); ctx.arc(b.x-camera.x, b.y, 40 + b.power/2, 0, Math.PI*2); ctx.fill();
+                } else {
+                    ctx.beginPath(); ctx.arc(b.x-camera.x, b.y, 10 + b.power/10, 0, Math.PI*2); ctx.fill();
+                    ctx.strokeStyle = "#fff"; ctx.stroke();
+                }
+            });
+            particles.forEach(p => { 
+                ctx.fillStyle = p.color; 
+                if (p.isHeart) {
+                    ctx.font = "30px Arial"; ctx.fillText("❤", p.x-camera.x, p.y);
+                } else {
+                    ctx.fillRect(p.x-camera.x, p.y, 10, 10); 
+                }
+            });
+
+            update(); requestAnimationFrame(draw);
+        }
+        draw();
+    </script>
+</body>
+</html>
