@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IL MARCATORE TM - CRACKTRO</title>
+    <title>IL MARCATORE TM - CRACKTRO NATIVO</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
         
@@ -11,7 +11,7 @@
             margin: 0; padding: 0; height: 100%; width: 100%; 
             background: #000; overflow: hidden; 
             font-family: 'Press Start 2P', monospace; 
-            cursor: default;
+            cursor: pointer;
         }
         
         #amiga-canvas { display: block; width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
@@ -23,65 +23,76 @@
         }
         .blink { animation: blinker 1s linear infinite; }
         @keyframes blinker { 50% { opacity: 0; } }
-
-        /* Strudel è tenuto rigorosamente SOTTO e INVISIBILE come richiesto. */
-        #strudel-frame { 
-            position: absolute; top: 0; left: 0; 
-            width: 1px; height: 1px; 
-            opacity: 0.01; z-index: -1; pointer-events: none; border: none; 
-        }
     </style>
 </head>
 <body>
     <div id="overlay">
         <div>
             <h2 style="color: #ffff00; text-shadow: 2px 2px #ffaa00;">IL MARCATORE TM</h2>
-            <p id="btn-text" class="blink" style="cursor: pointer;">Please insert volume System in any drive</p>
-            <p id="error-msg" style="color: red; display: none; font-size: 12px; margin-top: 20px;">
-                CORS ERROR: File locale rilevato.<br>Per usare il bottone invisibile devi avviare<br>un server locale o caricarlo su GitHub Pages.
-            </p>
+            <p class="blink">Please insert volume System in any drive</p>
         </div>
     </div>
 
     <canvas id="amiga-canvas"></canvas>
-    
-    <!-- Strudel pre-caricato senza play=1 per evitare blocchi audio inziali -->
-    <iframe id="strudel-frame" allow="autoplay; audio"></iframe>
 
-    <textarea id="my-code" style="display:none">
-const ratchet = register('ratchet', (pat) => pat.sometimes(ply(2)))
-samples({'myvox':['0.wav','1.wav','2.wav','3.wav','4.wav','5.wav','6.wav','7.wav','8.wav','9.wav','10.wav','11.wav','12.wav']},'https://cdn.jsdelivr.net/gh/italianloverboy/uuh@main/samples/');
-setcpm(75/4);
-const bPatt = "<[c2 ~ g1 ~] [c2 ~ g1 f1] [bb1 ~ f1 ~] [bb1 ~ g1 bb1]>";
-const sPatt = "<[~ c3 ~ c3] [~ c3 ~ c3] [~ f3 ~ f3] [~ f3 ~ f3]>";
-const hookPatt = "<[c4 ~ d4 eb4] [g4 ~ ~ ~] [f4 ~ eb4 d4] [c4 ~ ~ ~]>";
-const modWeak = rand.range(0.01,0.05); const modStrong = rand.range(0.1,0.5);   
-const modActive = "<1 0 1 0>";
-const wMod = (base) => choose(0,modWeak,modStrong).segment(1).slow(4).mul(modActive).add(base);
-stack(
-  s("[~ ~ bd ~] [~ ~ bd ~]").bank("RolandTR808").lpf(800).room(0.2).gain(1.2), 
-  s("[~ sn ~ ~] [~ sn ~ ~]").bank("RolandTR808").room(0.4).gain(0.8),
-  s("hh*8").bank("RolandTR808").decay(0.02).gain(0.4).pan(sine.slow(4)),
-  note(bPatt).s("saw").lpf(400).lpq(10).decay(0.4).gain(0.9),
-  note(sPatt).s("triangle").adsr(0.01,0.1,0,0.1).room(0.3).gain(0.6),
-  s("myvox").n(choose(0,2,4,6)).speed(0.8).crush(choose(4,8)).pan(rand).gain(0.3), 
-  s("myvox").n(choose(1,3,5,7)).struct("~ ~ ~ x").speed(1.2).room(0.8).gain(0.2),
-  note("<[[c4 ~ ~ ~] [~ g4 ~ ~] [f4 ~ ~ ~] [~ c4 ~ ~]]!4 [[bb3 ~ ~ ~] [~ f4 ~ ~] [eb4 ~ ~ ~] [~ bb3 ~ ~]]!4>").s("gm_pan_flute").room(0.6).delay(0.4).gain(0.3),
-  note("<[[c3m ~ ~ ~] [f3 ~ ~ ~] [bb2 ~ ~ ~] [eb3 ~ ~ ~]]!4>").s("gm_telephone").room(0.5).delay(0.5).delayfb(0.4).gain(0.25),
-  note(hookPatt).s("saw").lpf(sine.range(500,2000).slow(8)).lpq(15).delay(0.6).delayt(0.75).room(0.5).gain(0.4)
-)
-    </textarea>
+    <!-- Carichiamo Strudel NATIVAMENTE tramite script module -->
+    <script type="module">
+        import { initStrudel, evalStrudel } from 'https://cdn.skypack.dev/@strudel/web';
 
-    <script>
-        // Carichiamo Strudel all'inizio.
-        function preloadStrudel() {
-            const code = document.getElementById('my-code').value.trim();
-            const b64 = btoa(unescape(encodeURIComponent(code)));
-            // Usiamo hide=1 per nascondere Strudel come richiesto.
-            document.getElementById('strudel-frame').src = 'https://strudel.cc/?hide=1#' + b64;
-        }
-        preloadStrudel();
+        // 1. Definiamo i campioni RolandTR808 a mano per evitare il problema dell'altra volta
+        // Li prendiamo direttamente dal CDN di Strudel
+        const tr808Samples = {
+            'bd': 'bd.wav',
+            'sn': 'sn.wav',
+            'hh': 'hh.wav',
+            'oh': 'oh.wav',
+            'cp': 'cp.wav',
+            'rim': 'rim.wav'
+        };
 
+        const code = `
+            // Carichiamo i tuoi campioni personalizzati
+            samples({'myvox':['0.wav','1.wav','2.wav','3.wav','4.wav','5.wav','6.wav','7.wav','8.wav','9.wav','10.wav','11.wav','12.wav']}, 'https://cdn.jsdelivr.net/gh/italianloverboy/uuh@main/samples/');
+            
+            // Forziamo i campioni 808 che mancavano nella versione nativa
+            samples(${JSON.stringify(tr808Samples)}, 'https://strudel.cc/samples/RolandTR808/');
+
+            setcpm(75/4);
+            const bPatt = "<[c2 ~ g1 ~] [c2 ~ g1 f1] [bb1 ~ f1 ~] [bb1 ~ g1 bb1]>";
+            const sPatt = "<[~ c3 ~ c3] [~ c3 ~ c3] [~ f3 ~ f3] [~ f3 ~ f3]>";
+            const hookPatt = "<[c4 ~ d4 eb4] [g4 ~ ~ ~] [f4 ~ eb4 d4] [c4 ~ ~ ~]>";
+            
+            stack(
+                s("[~ ~ bd ~] [~ ~ bd ~]").bank("RolandTR808").lpf(800).room(0.2).gain(1.2), 
+                s("[~ sn ~ ~] [~ sn ~ ~]").bank("RolandTR808").room(0.4).gain(0.8),
+                s("hh*8").bank("RolandTR808").decay(0.02).gain(0.4).pan(sine.slow(4)),
+                note(bPatt).s("saw").lpf(400).lpq(10).decay(0.4).gain(0.9),
+                note(sPatt).s("triangle").adsr(0.01,0.1,0,0.1).room(0.3).gain(0.6),
+                s("myvox").n(choose(0,2,4,6)).speed(0.8).crush(choose(4,8)).pan(rand).gain(0.3), 
+                s("myvox").n(choose(1,3,5,7)).struct("~ ~ ~ x").speed(1.2).room(0.8).gain(0.2),
+                note("<[[c4 ~ ~ ~] [~ g4 ~ ~] [f4 ~ ~ ~] [~ c4 ~ ~]]!4 [[bb3 ~ ~ ~] [~ f4 ~ ~] [eb4 ~ ~ ~] [~ bb3 ~ ~]]!4>").s("gm_pan_flute").room(0.6).delay(0.4).gain(0.3),
+                note("<[[c3m ~ ~ ~] [f3 ~ ~ ~] [bb2 ~ ~ ~] [eb3 ~ ~ ~]]!4>").s("gm_telephone").room(0.5).delay(0.5).delayfb(0.4).gain(0.25),
+                note(hookPatt).s("saw").lpf(sine.range(500,2000).slow(8)).lpq(15).delay(0.6).delayt(0.75).room(0.5).gain(0.4)
+            )
+        `;
+
+        let started = false;
+        document.body.addEventListener('click', async () => {
+            if (started) return;
+            started = true;
+
+            // Sblocchiamo l'audio
+            await initStrudel();
+            
+            // Eseguiamo il codice
+            evalStrudel(code);
+
+            // Avviamo la grafica
+            document.getElementById('overlay').style.display = 'none';
+            requestAnimationFrame(draw);
+        });
+
+        // --- MOTORE GRAFICO AMIGA ---
         const canvas = document.getElementById('amiga-canvas');
         const ctx = canvas.getContext('2d');
         let width, height;
@@ -98,13 +109,12 @@ stack(
             stars.push({ x: Math.random()*2000-1000, y: Math.random()*2000-1000, z: Math.random()*2000 });
         }
 
-        const scrollText = "   *** IL MARCATORE TM PRESENTS *** ANOTHER PROCEDURAL CHIPTUNE *** 100% WORKING STRUDEL ENGINE *** SHOUTOUTS TO ALL AMIGA SCENERS OUT THERE *** ENJOY THIS RETRO VIBE ***   ";
+        const scrollText = "   *** IL MARCATORE TM PRESENTS *** NATIVE ENGINE VERSION *** NO IFRAME BULLSHIT *** 100% COMPATIBLE *** ENJOY THE VIBE ***   ";
         let scrollX = width;
         let time = 0;
 
         function draw() {
             time += 0.05;
-            
             ctx.fillStyle = '#000';
             ctx.fillRect(0, 0, width, height);
 
@@ -124,76 +134,33 @@ stack(
                 let px = (s.x / s.z) * 500 + width/2;
                 let py = (s.y / s.z) * 500 + height/2;
                 let size = (1 - s.z/2000) * 3;
-                if(px > 0 && px < width && py > 0 && py < height) {
-                    ctx.fillRect(px, py, size, size);
-                }
+                if(px > 0 && px < width && py > 0 && py < height) ctx.fillRect(px, py, size, size);
             }
 
             ctx.textAlign = "center";
             const logoY = 120 + Math.abs(Math.sin(time * 2.5)) * 60;
-            
             ctx.font = "bold 40px 'Press Start 2P', monospace";
             ctx.fillStyle = '#ff5500';
             ctx.fillText("IL MARCATORE TM", width/2 + 4, logoY + 4);
             ctx.fillStyle = '#ffff00';
             ctx.fillText("IL MARCATORE TM", width/2, logoY);
 
-            ctx.font = "16px 'Press Start 2P', monospace";
-            ctx.fillStyle = '#00ff00';
-            ctx.fillText("CRACKED & RELEASED", width/2, logoY + 40);
-
             ctx.font = "24px 'Press Start 2P', monospace";
             ctx.textAlign = "left";
             scrollX -= 5;
-            
-            if (scrollX < -scrollText.length * 24) {
-                scrollX = width;
-            }
-
+            if (scrollX < -scrollText.length * 24) scrollX = width;
             for(let i=0; i<scrollText.length; i++) {
                 let charX = scrollX + (i * 24);
                 if (charX > -30 && charX < width + 30) {
                     let charY = height - 80 + Math.sin((charX * 0.015) + time*2) * 40;
                     let hue = Math.floor((i * 5 - time * 50) % 360);
                     if (hue < 0) hue += 360;
-                    ctx.fillStyle = "hsl(" + hue + ", 100%, 50%)";
+                    ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
                     ctx.fillText(scrollText[i], charX, charY);
                 }
             }
-
             requestAnimationFrame(draw);
         }
-
-        // Il bottone HTML che comunica in modo INVISIBILE con l'iframe Strudel
-        let isStarted = false;
-        document.getElementById('overlay').addEventListener('click', function() {
-            // Controllo critico: se apri il file dal desktop (file:///), la sicurezza del browser BLOCCA le comunicazioni iframe.
-            if (window.location.protocol === 'file:') {
-                document.getElementById('error-msg').style.display = 'block';
-                // Mostra temporaneamente Strudel per permetterti di premere play manualmente se sei su desktop
-                document.getElementById('strudel-frame').style.width = "400px";
-                document.getElementById('strudel-frame').style.height = "200px";
-                document.getElementById('strudel-frame').style.opacity = "1";
-                document.getElementById('strudel-frame').style.top = "60%";
-                document.getElementById('strudel-frame').style.left = "50%";
-                document.getElementById('strudel-frame').style.transform = "translateX(-50%)";
-                document.getElementById('strudel-frame').style.zIndex = "9999";
-                document.getElementById('strudel-frame').src = 'https://strudel.cc/?play=1#' + btoa(unescape(encodeURIComponent(document.getElementById('my-code').value.trim())));
-                return;
-            }
-
-            if (!isStarted) {
-                isStarted = true;
-                document.getElementById('overlay').style.display = 'none';
-                requestAnimationFrame(draw);
-                
-                const code = document.getElementById('my-code').value.trim();
-                const iframe = document.getElementById('strudel-frame');
-                
-                // Manda il comando eval ufficiale a Strudel via postMessage
-                iframe.contentWindow.postMessage({ type: 'eval', code: code }, 'https://strudel.cc');
-            }
-        });
     </script>
 </body>
 </html>
