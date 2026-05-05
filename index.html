@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IL MARCATORE TM - CRACKTRO DEFINITIVE</title>
+    <title>IL MARCATORE TM - CRACKTRO STABLE</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
         
@@ -36,35 +36,34 @@
     <canvas id="amiga-canvas"></canvas>
 
     <script type="module">
-        // IMPORTANTE: La funzione corretta è 'evaluate', non 'evalStrudel'
         import { initStrudel, evaluate } from 'https://cdn.jsdelivr.net/npm/@strudel/web/+esm';
 
+        // Mappa pulita per Strudel
         const tr808Map = {
             'bd': 'bd.wav', 'sn': 'sn.wav', 'hh': 'hh.wav', 'oh': 'oh.wav',
             'cp': 'cp.wav', 'rim': 'rim.wav', 'cb': 'cb.wav', 'cl': 'cl.wav'
         };
 
+        // CODICE PULITO: niente punti e virgola, sintassi funzionale pura
         const strudelCode = `
-            samples({'myvox':['0.wav','1.wav','2.wav','3.wav','4.wav','5.wav','6.wav','7.wav','8.wav','9.wav','10.wav','11.wav','12.wav']}, 'https://cdn.jsdelivr.net/gh/italianloverboy/uuh@main/samples/');
-            samples(${JSON.stringify(tr808Map)}, 'https://strudel.cc/samples/RolandTR808/');
+samples({'myvox':['0.wav','1.wav','2.wav','3.wav','4.wav','5.wav','6.wav','7.wav','8.wav','9.wav','10.wav','11.wav','12.wav']}, 'https://cdn.jsdelivr.net/gh/italianloverboy/uuh@main/samples/')
 
-            setcpm(75/4);
-            const bPatt = "<[c2 ~ g1 ~] [c2 ~ g1 f1] [bb1 ~ f1 ~] [bb1 ~ g1 bb1]>";
-            const sPatt = "<[~ c3 ~ c3] [~ c3 ~ c3] [~ f3 ~ f3] [~ f3 ~ f3]>";
-            const hookPatt = "<[c4 ~ d4 eb4] [g4 ~ ~ ~] [f4 ~ eb4 d4] [c4 ~ ~ ~]>";
-            
-            stack(
-                s("[~ ~ bd ~] [~ ~ bd ~]").bank("RolandTR808").lpf(800).room(0.2).gain(1.2), 
-                s("[~ sn ~ ~] [~ sn ~ ~]").bank("RolandTR808").room(0.4).gain(0.8),
-                s("hh*8").bank("RolandTR808").decay(0.02).gain(0.4).pan(sine.slow(4)),
-                note(bPatt).s("saw").lpf(400).lpq(10).decay(0.4).gain(0.9),
-                note(sPatt).s("triangle").adsr(0.01,0.1,0,0.1).room(0.3).gain(0.6),
-                s("myvox").n(choose(0,2,4,6)).speed(0.8).crush(choose(4,8)).pan(rand).gain(0.3), 
-                s("myvox").n(choose(1,3,5,7)).struct("~ ~ ~ x").speed(1.2).room(0.8).gain(0.2),
-                note("<[[c4 ~ ~ ~] [~ g4 ~ ~] [f4 ~ ~ ~] [~ c4 ~ ~]]!4 [[bb3 ~ ~ ~] [~ f4 ~ ~] [eb4 ~ ~ ~] [~ bb3 ~ ~]]!4>").s("gm_pan_flute").room(0.6).delay(0.4).gain(0.3),
-                note("<[[c3m ~ ~ ~] [f3 ~ ~ ~] [bb2 ~ ~ ~] [eb3 ~ ~ ~]]!4>").s("gm_telephone").room(0.5).delay(0.5).delayfb(0.4).gain(0.25),
-                note(hookPatt).s("saw").lpf(sine.range(500,2000).slow(8)).lpq(15).delay(0.6).delayt(0.75).room(0.5).gain(0.4)
-            )
+samples(${JSON.stringify(tr808Map)}, 'https://strudel.cc/samples/RolandTR808/')
+
+setcpm(75/4)
+
+stack(
+  s("[~ ~ bd ~] [~ ~ bd ~]").bank("RolandTR808").lpf(800).room(0.2).gain(1.2), 
+  s("[~ sn ~ ~] [~ sn ~ ~]").bank("RolandTR808").room(0.4).gain(0.8),
+  s("hh*8").bank("RolandTR808").decay(0.02).gain(0.4).pan(sine.slow(4)),
+  note("<[c2 ~ g1 ~] [c2 ~ g1 f1] [bb1 ~ f1 ~] [bb1 ~ g1 bb1]>").s("saw").lpf(400).lpq(10).decay(0.4).gain(0.9),
+  note("<[~ c3 ~ c3] [~ c3 ~ c3] [~ f3 ~ f3] [~ f3 ~ f3]>").s("triangle").adsr(0.01,0.1,0,0.1).room(0.3).gain(0.6),
+  s("myvox").n(choose(0,2,4,6)).speed(0.8).crush(choose(4,8)).pan(rand).gain(0.3), 
+  s("myvox").n(choose(1,3,5,7)).struct("~ ~ ~ x").speed(1.2).room(0.8).gain(0.2),
+  note("<[[c4 ~ ~ ~] [~ g4 ~ ~] [f4 ~ ~ ~] [~ c4 ~ ~]]!4 [[bb3 ~ ~ ~] [~ f4 ~ ~] [eb4 ~ ~ ~] [~ bb3 ~ ~]]!4>").s("gm_pan_flute").room(0.6).delay(0.4).gain(0.3),
+  note("<[[c3m ~ ~ ~] [f3 ~ ~ ~] [bb2 ~ ~ ~] [eb3 ~ ~ ~]]!4>").s("gm_telephone").room(0.5).delay(0.5).delayfb(0.4).gain(0.25),
+  note("<[c4 ~ d4 eb4] [g4 ~ ~ ~] [f4 ~ eb4 d4] [c4 ~ ~ ~]>").s("saw").lpf(sine.range(500,2000).slow(8)).lpq(15).delay(0.6).delayt(0.75).room(0.5).gain(0.4)
+)
         `;
 
         let isRunning = false;
@@ -72,22 +71,20 @@
             if (isRunning) return;
             isRunning = true;
 
-            try {
-                // Sblocca audio
-                await initStrudel();
-                // Esegue musica
-                await evaluate(strudelCode);
+            // Forza la sparizione dell'overlay anche se Strudel dovesse avere problemi
+            document.getElementById('overlay').style.display = 'none';
+            requestAnimationFrame(draw);
 
-                // Nasconde scritta e avvia grafica
-                document.getElementById('overlay').style.display = 'none';
-                requestAnimationFrame(draw);
+            try {
+                await initStrudel();
+                await evaluate(strudelCode);
             } catch (e) {
                 console.error("Strudel Error:", e);
-                isRunning = false;
+                // Se fallisce la musica, non resettiamo isRunning per non mostrare l'overlay di nuovo
             }
         });
 
-        // --- GRAFICA ---
+        // --- MOTORE GRAFICO ---
         const canvas = document.getElementById('amiga-canvas');
         const ctx = canvas.getContext('2d');
         let width, height;
@@ -104,7 +101,7 @@
             stars.push({ x: Math.random()*2000-1000, y: Math.random()*2000-1000, z: Math.random()*2000 });
         }
 
-        const scrollText = "   *** IL MARCATORE TM PRESENTS *** DEFINITIVE NATIVE VERSION *** ALL BUGS SQUASHED *** NO MORE SILENCE *** CLICK TO ROCK ***   ";
+        const scrollText = "   *** IL MARCATORE TM PRESENTS *** STABLE NATIVE VERSION *** SYNTAX BUGS REMOVED *** ENJOY THE VIBE *** CLICK TO ROCK ***   ";
         let scrollX = width;
         let time = 0;
 
