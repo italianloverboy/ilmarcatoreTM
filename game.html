@@ -712,15 +712,15 @@
             let spawnX = forceX !== null ? forceX : (sp ? sp.x : player.x + (Math.random() > 0.5 ? 1200 : -1200));
             if (sp && forceX === null) sp.count--;
             if (spawnX < 0) spawnX = 1200;
-            globalSpawnTimer = 60;
+            globalSpawnTimer = (entities.length < 5) ? 0 : 60; // Spawn immediato se c'è poca gente (all'inizio)
             
             let rand = Math.random() * 100;
             let type = 'passerby';
-            if (rand < 15) type = 'robot';
+            if ((currentLevel === 1 || currentLevel === 3)) type = 'pigeon'; // FORZATURA DEBUG
+            else if (rand < 15) type = 'robot';
             else if (rand < 30) type = 'woman';
             else if (rand < 35) type = 'alpha';
             else if (rand < 40) type = 'disguise';
-            else if (rand < 55 && (currentLevel === 1 || currentLevel === 3)) type = 'pigeon'; // Solo Livelli 1 e 3
             else if (rand < 95) type = 'passerby';
             else type = 'nerd';
             
@@ -928,10 +928,10 @@
                 if (gameTime % 120 === 0) {
                     let nearEnemies = 0;
                     for(let en of entities) {
-                        const isHumanoid = ['alpha', 'passerby', 'nerd', 'disguise'].includes(en.type);
-                        if((en.type==='woman'||en.type==='robot'||isHumanoid) && Math.abs(en.x - player.x) < 1000) nearEnemies++;
+                        const isNPC = ['alpha', 'passerby', 'nerd', 'disguise', 'woman', 'robot', 'pigeon'].includes(en.type);
+                        if(isNPC && en.state !== 'dead' && Math.abs(en.x - player.x) < 2000) nearEnemies++;
                     }
-                    if (nearEnemies < 5) spawnEnemy(); 
+                    if (nearEnemies < 5 && entities.length < 30) spawnEnemy(); 
                 }
 
                 entities = entities.filter(en => en.hp === undefined || en.hp > 0 || en.state === 'dead');                
@@ -941,6 +941,23 @@
                     
                     // IA CULLING: Se troppo lontano dal giocatore, non processare IA per risparmiare CPU
                     if (Math.abs(en.x - player.x) > 2500 && en.type !== 'mansion') return;
+
+                    // --- FIX NPC MORTI (v0.65 Parity) ---
+                    if (en.state === 'dead' || en.state === 'fallen') {
+                        en.vy += 0.8; en.y += en.vy; 
+                        en.vx *= 0.9; en.x += en.vx;
+                        // Collisione col suolo (Parità 1:1)
+                        if (en.y > 840) { en.y = 840; en.vy = 0; }
+                        // Collisione piattaforme (opzionale ma consigliata)
+                        for(let p of level.platforms) {
+                            if (en.x > p.x && en.x < p.x + p.w && en.y + 120 > p.y && en.y + 120 < p.y + 50) {
+                                en.y = p.y - 120; en.vy = 0;
+                            }
+                        }
+                        if (en.y > 2000) en.active = false;
+                        return; 
+                    }
+                    // -------------------------------------
 
                     // IA Evitamento Ultra-Light (ottimizzata)
                     const isH = ['alpha', 'passerby', 'nerd', 'disguise'].includes(en.type);
@@ -1150,8 +1167,9 @@
                             });
                             return;
                         }
-                        
-                        const isHumanoid = ['alpha', 'passerby', 'nerd', 'disguise'].includes(en.type);
+                        // (Rimossa duplicazione spawnEnemy errata nel loop)
+
+                        const isHumanoid = ['alpha', 'passerby', 'nerd', 'disguise', 'robot'].includes(en.type);
                         if (isHumanoid && gameState === 'PLAY') {
                         // Robot Travestito si scopre (subito se hai gli occhiali a distanza 800)
                         if (en.type === 'disguise') {
@@ -1188,7 +1206,7 @@
                                       // Comportamento Alpha (Gelosia) o Ritorsione (Rabbia)
                         const shouldAttack = en.isFurious || (en.type === 'alpha' && attachedCount > 0);
                         
-                        if (shouldAttack && dist < 600) {
+                        if (shouldAttack && dist < 600 && en.state !== 'dead') {
                             if (!en.isAggressive) {
                                 en.bubble = en.isFurious ? "MO' TI AGGIUSTO IO!" : "HEY TU, PORCO, LEVALE LE MANI DI DOSSO!";
                                 en.bubbleTimer = 60;
@@ -1196,7 +1214,7 @@
                             }
                             en.dir = Math.sign(player.x - en.x);
                             en.x += en.dir * (en.isFurious ? 8.1 : 5.4); // Velocità ridotta del 10%
-                            if (dist < 40 && Math.abs(player.y - en.y) < 100 && player.invTimer <= 0) {
+                            if (dist < 40 && Math.abs(player.y - en.y) < 100 && player.invTimer <= 0 && en.state !== 'dead') {
                                 player.hp = Math.max(0, player.hp - (en.isFurious ? 30 : 10));
                                 player.vx = en.dir * 7; player.vy = -5; // Knockback ridotto
                                 player.invTimer = 40; spawnParticles(player.x+30, player.y+60, "#ff0000", 10);
@@ -1250,9 +1268,9 @@
                             en.x += en.dir * 3; 
                             if (gameTime % 200 === 0) en.dir *= -1; 
                         }
-                        // 1. COLLISIONE DANNO (Solo se NON siamo sopra la sua testa)
+                        // 1. COLLISIONE DANNO (Solo se NON siamo sopra la sua testa e Robot è vivo)
                         let isAbove = (player.y + player.h) < (en.y + 40);
-                        if (!isAbove && Math.abs(player.x - en.x) < 50 && Math.abs(player.y - en.y) < 100 && !player.hidden && player.invTimer <= 0) {
+                        if (!isAbove && Math.abs(player.x - en.x) < 50 && Math.abs(player.y - en.y) < 100 && !player.hidden && player.invTimer <= 0 && en.state !== 'dead') {
                             player.hp = Math.max(0, player.hp - 15); 
                             player.vx = Math.sign(player.x - en.x) * 7; player.vy = -5; // Knockback ridotto
                             player.stun = 20; player.invTimer = 60; 
@@ -1395,16 +1413,38 @@
                             continue;
                         }
 
-                        const isHumanoid = ['alpha', 'passerby', 'nerd', 'disguise'].includes(en.type);
+                        // --- CALCOLO DISTANZA HIT ---
+                        let dx = Math.abs(b.x - (en.x + 30));
+                        let dy = Math.abs(b.y - (en.y + 60)); // Default per umanoidi
+                        if (en.type === 'chest') dy = Math.abs(b.y - (en.y + 30));
+
+                        // --- GESTIONE CADAVERI (Non bloccano i colpi) ---
+                        if (en.state === 'dead' || en.state === 'fallen') {
+                            if (dx < 100 && dy < 100 && !b.hitList.includes(en)) {
+                                b.hitList.push(en);
+                                spawnParticles(en.x + 30, en.y + 40, "#ff0000", 3);
+                            }
+                            continue;
+                        }
+
+                        const isHumanoid = ['alpha', 'passerby', 'nerd', 'disguise', 'pigeon'].includes(en.type);
                         if (en.type !== 'robot' && !isHumanoid && en.type !== 'chest') continue;
                         
                         let hitDist = (en.type === 'chest') ? 60 : 150;
-                        let dx = Math.abs(b.x - (en.x + 30));
-                        let dy = Math.abs(b.y - (en.y + 30)); // Centrato per gli scrigni
-                        if (en.type !== 'chest') dy = Math.abs(b.y - (en.y + 60)); // Centrato per umanoidi
-                        
+                        if (en.type === 'pigeon') hitDist = 80; // Hitbox ridotta piccione
+
                         if (dx < hitDist && dy < hitDist && !b.hitList.includes(en)) {
-                            b.hitList.push(en); // Colpisci solo una volta per pugno
+                            b.hitList.push(en); 
+                            
+                            if (en.type === 'pigeon') {
+                                en.active = false; score += 50;
+                                spawnParticles(en.x+30, en.y+40, "#ccc", 10); // Grigio piuma
+                                spawnParticles(en.x+30, en.y+40, "#fff", 5);  // Bianco
+                                spawnParticles(en.x+30, en.y+40, "#ff0000", 3); // Sangue
+                                playSound('hit');
+                                if (b.power < 110) b.dead = true;
+                                continue;
+                            }
                             
                             if (en.type === 'robot') {
                                 // Robot Stun/EMP
