@@ -133,6 +133,7 @@
     <canvas id="gameCanvas"></canvas>
     <audio id="bgm" src="Pixelated Love (Instrumental).mp3" loop></audio>
     <audio id="outro-bgm" src="Pixelated Love.mp3"></audio>
+    <audio id="fullmoon-bgm" src="fullmoon.mp3"></audio>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
@@ -308,8 +309,12 @@
             const TILE = 32;
             WORLD_W = 15000 + (currentLevel * 5000); // Livelli sempre più lunghi
             level = { platforms: [], poles: [], vines: [], spawnPoints: [], hidingSpots: [], walls: [], pits: [] };
-            level.platforms.push({ x: -3000, y: 960, w: WORLD_W + 3000, h: 120 });
-            level.platforms.push({ x: -3000, y: 1080, w: WORLD_W + 3000, h: 1000 }); 
+            level.platforms.push({ x: -5000, y: 960, w: WORLD_W + 5000, h: 120 });
+            level.platforms.push({ x: -5000, y: 1080, w: WORLD_W + 5000, h: 1000 }); 
+            
+            // DEBUG PLATFORM (Ultra-raggiungibile, spostata al limite sx)
+            level.platforms.push({ x: -4600, y: 780, w: 1200, h: 40 }); // Mid
+            level.platforms.push({ x: -4600, y: 600, w: 1200, h: 40 }); // Top
             
             // Piattaforme iniziali
             level.platforms.push({ x: 2000, y: 750, w: 400, h: 40 }); 
@@ -361,7 +366,7 @@
 
         window.addEventListener('keydown', e => { 
             const bgm = document.getElementById('bgm');
-            if (bgm && bgm.paused) {
+            if (bgm && bgm.paused && !player.hasFullMoon && !player.hasBloodMoon) {
                 bgm.volume = 0.4;
                 bgm.play().catch(e => console.log("Audio play blocked"));
             }
@@ -388,7 +393,8 @@
                         overlay.style.display = 'none';
                         const bgm_inst = document.getElementById('bgm');
                         const bgm_outro = document.getElementById('outro-bgm');
-                        if (bgm_inst) bgm_inst.pause();
+                        if (bgm_inst) { bgm_inst.pause(); bgm_inst.currentTime = 0; }
+                        if (header) header.style.display = 'none';
                         if (bgm_outro) { bgm_outro.currentTime = 0; bgm_outro.play(); }
                         return;
                     }
@@ -416,7 +422,7 @@
         window.addEventListener('contextmenu', e => e.preventDefault()); // Blocca menu Windows
         window.addEventListener('mousedown', (e) => { 
             const bgm = document.getElementById('bgm');
-            if (bgm && bgm.paused) {
+            if (bgm && bgm.paused && !player.hasFullMoon && !player.hasBloodMoon) {
                 bgm.volume = 0.4;
                 bgm.play().catch(e => console.log("Audio play blocked"));
             }
@@ -450,8 +456,8 @@
                 player.punchTimer = 20;
                 player.punchPower = player.energy;
                 
-                if (player.isBarrierMode && player.hasJacket && !player.isFake && player.energy > 5) {
-                    // SPAWN BARRIERA (RMB + Giubbino Vero) - MAX 2
+                if ((player.isBarrierMode && (player.hasBloodMoon || (player.hasJacket && !player.isFake && player.energy > 5)))) {
+                    // SPAWN BARRIERA (RMB + Giubbino Vero OR BloodMoon) - MAX 2
                     if (barriers.length < 2) {
                         let dirX = Math.cos(player.punchAngle) > 0 ? 1 : -1;
                         barriers.push({
@@ -470,28 +476,31 @@
                         player.guruCount--;
                         player.jacketHp -= 50; 
                         player.maxChargeTimer = 0;
-                    } else if (player.hasJacket) {
+                    } else if (player.hasJacket || player.hasBloodMoon) {
                         let speed = 10 + player.energy/5;
-                        if (player.energy < 40 || player.isFake) {
+                        if ((player.energy < 40 || player.isFake) && !player.hasBloodMoon) {
                             let pwr = player.energy + (player.isFake ? 60 : 20);
                             bullets.push({ 
                                 x: player.x + 30, y: player.y + 40, 
                                 vx: Math.cos(angle) * 8, vy: Math.sin(angle) * 8, 
                                 life: 10, power: pwr, melee: true, 
-                                color: player.jacketColor, hitList: [] 
+                                color: player.hasBloodMoon ? "#ff0000" : player.jacketColor, hitList: [] 
                             });
                         } else {
                             let bCol = "#00ffff";
                             if (player.energy > 80) bCol = "#ffff00";
+                            if (player.hasBloodMoon) bCol = "#ff0000";
+                            
                             bullets.push({
                                 x: player.x + 30, y: player.y + 40, 
                                 vx: Math.cos(angle) * speed, 
                                 vy: Math.sin(angle) * speed, 
                                 power: player.energy,
-                                color: bCol, melee: false, hitList: []
+                                color: bCol, melee: false, hitList: [],
+                                isLaser: (player.hasBloodMoon && player.energy >= 110)
                             });
                             bullets.push({ x: player.x + 30, y: player.y + 40, vx: Math.cos(angle) * 8, vy: Math.sin(angle) * 8, life: 10, power: player.energy + 20, melee: true, hitList: [] });
-                            player.jacketHp -= player.energy / 5;
+                            if (player.hasJacket) player.jacketHp -= player.energy / 5;
                         }
                     } else {
                         bullets.push({ x: player.x + 30, y: player.y + 40, vx: Math.cos(angle) * 8, vy: Math.sin(angle) * 8, life: 10, power: player.energy + 20, melee: true, hitList: [] });
@@ -558,7 +567,8 @@
                         overlay.style.display = 'none'; 
                         const bgm_inst = document.getElementById('bgm');
                         const bgm_outro = document.getElementById('outro-bgm');
-                        if (bgm_inst) bgm_inst.pause();
+                        if (bgm_inst) { bgm_inst.pause(); bgm_inst.currentTime = 0; }
+                        if (header) header.style.display = 'none';
                         if (bgm_outro) { bgm_outro.currentTime = 0; bgm_outro.play(); }
                     }
                     else startGame();
@@ -579,29 +589,38 @@
             player.hasSunglasses = false; player.hasSkates = false;
             player.vx = 0; player.vy = 0; player.attachedTo = null; player.climbing = false;
             camera.x = 0; player.stun = 0; SPEED = 8;
-            player.maxX = 400; // RESET MURO INVISIBILE
-            player.levelTitleTimer = 180; // Timer per il titolo del livello
-            player.tutorialTimer = (currentLevel === 1) ? 360 : 0; // 6 secondi di tutorial al Lvl 1
-            bullets = []; enemyBullets = []; clothes = []; particles = []; bubbles = []; barriers = [];
-            overlay.style.display = 'none'; // PULIZIA OVERLAY TRA LIVELLI
-            initEntities(); 
-            
-            // DEBUG ZONE (Molto a sinistra, non visibile all'avvio)
+                        player.maxX = 400; // RESET MURO INVISIBILE
+                        player.levelTitleTimer = 180; // Timer per il titolo del livello
+                        player.tutorialTimer = (currentLevel === 1) ? 360 : 0; // 6 secondi di tutorial al Lvl 1
+                        bullets = []; enemyBullets = []; clothes = []; particles = []; bubbles = []; barriers = [];
+                        overlay.style.display = 'none'; // PULIZIA OVERLAY TRA LIVELLI
+                        initEntities(); 
+            // DEBUG ZONE COMPLETA (Spostata al limite estremo -4500)
             const getRngColor = () => {
                 let h = Math.floor(Math.random()*360);
                 if (h > 10 && h < 50) h = 60; // Salta l'arancio
                 return `hsl(${h}, 100%, 50%)`;
             };
-            entities.push({ type: 'jacket', x: -2000, y: 840, w: 80, h: 80, hp: 1, active: true, color: getRngColor(), isFake: true });
-            entities.push({ type: 'jacket', x: -2200, y: 840, w: 80, h: 80, hp: 1, active: true, color: "#ff4400", isFake: false }); // GIACCA REALE
-            entities.push({ type: 'skates', x: -2400, y: 840, w: 80, h: 80, hp: 1, active: true });
-            entities.push({ type: 'tennis_shoes', x: -2600, y: 840, w: 80, h: 80, hp: 1, active: true, color: getRngColor(), detailColor: "#ffffff" });
-            entities.push({ type: 'sunglasses', x: -2800, y: 840, w: 80, h: 80, hp: 1, active: true });
             
-            // Randomizza look Bardo (Persona più noiosa del cosmo)
-            let h = Math.floor(Math.random()*360);
-            player.shirtColor = `hsl(${h}, ${15 + Math.random()*15}%, ${35 + Math.random()*15}%)`;
-            const symbols = ['heart', 'cross', 'flower', 'letterB'];
+            // TOP (Y=480 su piattaforma Y=600) - Oggetti POTENTI
+            entities.push({ type: 'jacket', x: -4500, y: 480, w: 80, h: 80, hp: 1, active: true, color: "#ff4400", isFake: false }); 
+            entities.push({ type: 'orange_shoes', x: -4300, y: 480, w: 80, h: 80, hp: 1, active: true });
+            entities.push({ type: 'sunglasses', x: -4100, y: 480, w: 80, h: 80, hp: 1, active: true });
+            entities.push({ type: 'bloodmoon', x: -3900, y: 480, w: 80, h: 80, hp: 1, active: true });
+            
+            // MID (Y=660 su piattaforma Y=780) - Oggetti BASE / TEST
+            entities.push({ type: 'jacket', x: -4500, y: 660, w: 80, h: 80, hp: 1, active: true, color: "#00ff00", isFake: true });  
+            entities.push({ type: 'skates', x: -4300, y: 660, w: 80, h: 80, hp: 1, active: true });
+            entities.push({ type: 'tennis_shoes', x: -4100, y: 660, w: 80, h: 80, hp: 1, active: true, color: "#ffffff", detailColor: "#ff0000" });
+            entities.push({ type: 'fullmoon', x: -3900, y: 660, w: 80, h: 80, hp: 1, active: true });
+            entities.push({ type: 'floppy', x: -3700, y: 660, w: 60, h: 60, hp: 1, active: true });
+            entities.push({ type: 'chip', x: -3500, y: 660, w: 40, h: 40, hp: 1, active: true });
+            entities.push({ type: 'chest', x: -3300, y: 660, w: 80, h: 80, hp: 3, active: true });
+            
+                        // Randomizza look Bardo (Persona più noiosa del cosmo)
+                        let h = Math.floor(Math.random()*360);
+                        player.shirtColor = `hsl(${h}, ${15 + Math.random()*15}%, ${35 + Math.random()*15}%)`;
+                        const symbols = ['heart', 'cross', 'flower', 'letterB'];
             player.shirtSymbol = symbols[Math.floor(Math.random()*symbols.length)];
             
             // INTRO DIALOGUE DINAMICI
@@ -697,11 +716,12 @@
             
             let rand = Math.random() * 100;
             let type = 'passerby';
-            if (rand < 20) type = 'robot';
-            else if (rand < 40) type = 'woman';
-            else if (rand < 50) type = 'alpha';
-            else if (rand < 60) type = 'disguise';
-            else if (rand < 99) type = 'passerby';
+            if (rand < 15) type = 'robot';
+            else if (rand < 30) type = 'woman';
+            else if (rand < 35) type = 'alpha';
+            else if (rand < 40) type = 'disguise';
+            else if (rand < 55 && (currentLevel === 1 || currentLevel === 3)) type = 'pigeon'; // Solo Livelli 1 e 3
+            else if (rand < 95) type = 'passerby';
             else type = 'nerd';
             
             let colors = null;
@@ -735,7 +755,8 @@
             if (colors && colors.head === 'cap') inv.unshift('cap'); // Cappello sempre per primo
 
             entities.push({ 
-                type, x: spawnX, y: 960, w: 60, h: 120, state: 'spawning', timer: 60, 
+                type, x: spawnX, y: (type === 'pigeon' ? 100 + Math.random()*300 : 960), w: 60, h: 120, 
+                state: (type === 'pigeon' ? 'flying_high' : 'spawning'), timer: 60, 
                 hp: (type === 'robot' ? 100 : 80), dir: (Math.random() > 0.5 ? 1 : -1), inv: (type === 'woman' ? inv : []), 
                 timerIA: 0, attached: false, colors: colors, bubbleCooldown: 0,
                 stun: 0, frozen: 0, vx: 0, vy: 0, shootTimer: 60 + Math.random()*120
@@ -1072,13 +1093,66 @@
                     // Fisica di sbalzo (sempre attiva per inerzia per TUTTI)
                     if (en.vx) { en.x += en.vx; en.vx *= 0.95; }
                     if (en.vy) { en.y += en.vy; en.vy += 0.5; if (en.y > 840) { en.y = 840; en.vy = 0; } }
+                    
+                    let dist = Math.abs(player.x - en.x);
 
-                    const isHumanoid = ['alpha', 'passerby', 'nerd', 'disguise'].includes(en.type);
-                    if (isHumanoid && gameState === 'PLAY') {
-                        if (en.state === 'dead') return;
-                        if (en.stun > 0) { en.stun--; return; }
-                        let dist = Math.abs(player.x - en.x);
+                    if (en.type === 'pigeon') {
+                            // IA Piccione Avanzata
+                            if (en.state === 'flying_high') {
+                                en.x += en.dir * 4;
+                                if (gameTime % 120 === 0 && Math.random() < 0.2) {
+                                    entities.push({ type: 'poop', x: en.x + 30, y: en.y + 110, w: 10, h: 10, hp: 1, vx: 0, vy: 2 });
+                                }
+                                if (Math.random() < 0.005) { en.state = 'landing'; }
+                                if (en.x < camera.x - 1000 || en.x > camera.x + SCREEN_W + 1000) en.hp = -1;
+                            } else if (en.state === 'landing') {
+                                en.y += 3; en.x += en.dir * 2;
+                                if (en.y >= 850) { en.y = 850; en.state = 'idle'; }
+                            } else if (en.state === 'idle') {
+                                if (Math.random() < 0.01) { en.state = 'pecking'; en.timerIA = 60 + Math.random()*120; }
+                                if (dist < 200) { en.state = 'flying'; en.dir = Math.sign(en.x - player.x); }
+                                if (Math.random() < 0.002) { en.state = 'flying_high'; }
+                            } else if (en.state === 'pecking') {
+                                en.timerIA--;
+                                if (en.timerIA <= 0) en.state = 'idle';
+                                if (dist < 200) { en.state = 'flying'; en.dir = Math.sign(en.x - player.x); }
+                            } else if (en.state === 'flying') {
+                                en.y -= 5; en.x += en.dir * 4;
+                                if (en.y < -300) en.hp = -1;
+                            }
+                            return;
+                        }
+
+                        if (en.type === 'poop') {
+                            en.y += en.vy; en.vy += 0.2;
+                            // Collisione con Terra
+                            if (en.y > 960) { en.hp = -1; spawnParticles(en.x, 960, "#ffffff", 5); }
+                            
+                            // Danno a Player
+                            if (Math.abs(en.x - player.x) < 30 && Math.abs(en.y - player.y) < 50 && player.invTimer <= 0) {
+                                player.hp = Math.max(0, player.hp - 5);
+                                player.invTimer = 30;
+                                en.hp = -1;
+                                spawnParticles(en.x, en.y, "#ffffff", 10);
+                                playSound('hit');
+                            }
+                            // Danno a NPC (Uccide o Stordisce)
+                            entities.forEach(other => {
+                                if (other !== en && other.type !== 'pigeon' && other.type !== 'poop' && other.hp > 0) {
+                                    if (Math.abs(en.x - other.x) < 40 && Math.abs(en.y - other.y) < 60) {
+                                        other.hp -= 20;
+                                        if (other.hp <= 0) other.state = 'dead';
+                                        else { other.state = 'flee'; other.bubble = "MA CHE SCHIFO!"; other.bubbleTimer = 60; }
+                                        en.hp = -1;
+                                        spawnParticles(en.x, en.y, "#ffffff", 10);
+                                    }
+                                }
+                            });
+                            return;
+                        }
                         
+                        const isHumanoid = ['alpha', 'passerby', 'nerd', 'disguise'].includes(en.type);
+                        if (isHumanoid && gameState === 'PLAY') {
                         // Robot Travestito si scopre (subito se hai gli occhiali a distanza 800)
                         if (en.type === 'disguise') {
                             let revealRange = player.hasSunglasses ? 800 : 300;
@@ -1146,7 +1220,6 @@
                         if (en.hp <= 0 || en.state === 'dead') { en.vx = 0; return; } // Blocco totale robot morti
                         if (en.frozen > 0) { en.frozen--; return; }
                         if (en.hp === 1) en.hp = 100;
-                        let dist = Math.abs(player.x - en.x); 
                         let sameHeight = Math.abs(player.y - en.y) < 150; 
                         let visionRange = (player.inLight ? 800 : 300) * (player.crouching ? 0.4 : 1.0);
                         
@@ -1186,10 +1259,19 @@
                             spawnParticles(player.x+30, player.y+60, "#ff0000");
                             playSound('hit');
                         }
+                        // BLOOD MOON DAMAGE TO EVERYONE (Calpestamento totale)
+                        if (player.hasBloodMoon && player.vy > 0 && Math.abs(player.x - en.x) < 80 && player.y + player.h > en.y && player.y + player.h < en.y + 50) {
+                            player.vy = -18;
+                            if (player.hasOrangeShoes) player.jumpCount = 1; // Reset multijump su colpo
+                            en.hp -= 100;
+                            spawnParticles(en.x, en.y, "#ff0000", 30);
+                            playSound('explosion');
+                        }
                         // 2. CALPESTAMENTO (Danno al Robot)
                         if (player.vy > 0 && Math.abs(player.x - en.x) < 80 && player.y + player.h > en.y && player.y + player.h < en.y + 50) {
                             player.vy = -18; 
-                            player.invTimer = 5; // Brevissima invulnerabilità per uscire dalla hitbox
+                            if (player.hasOrangeShoes) player.jumpCount = 1; 
+                            player.invTimer = 5; 
                             let dmg = player.hasJacket ? 50 : 20; 
                             en.hp -= dmg; 
                             en.frozen = 60; 
@@ -1209,7 +1291,7 @@
                         player.hasJacket = true; player.isFake = en.isFake; player.jacketColor = en.color || "#ff4400";
                         en.active = false; en.hp = -1; player.jacketHp = player.isFake ? 25 : 100;
                         score += 250;
-                        player.bubble = player.isFake ? "MERCATORE TNT!" : "HARDWARE READY!"; 
+                        player.bubble = player.isFake ? "toniefesso!" : "HARDWARE READY!"; 
                         player.bubbleTimer = 120; spawnParticles(en.x, en.y, player.jacketColor);
                     }
                     if (en.type === 'skates' && en.active && Math.hypot(player.x-en.x, player.y-en.y) < 120) {
@@ -1219,7 +1301,7 @@
                         player.bubble = "come Rolling Ronny"; player.bubbleTimer = 180; spawnParticles(en.x, en.y, "#00ff00");
                     }
                     if (en.type === 'tennis_shoes' && en.active && Math.hypot(player.x-en.x, player.y-en.y) < 120) {
-                        player.hasShoes = true; player.hasSkates = false; 
+                        player.hasShoes = true; player.hasSkates = false; player.hasOrangeShoes = false;
                         en.active = false; en.hp = -1; SPEED = 7.2;
                         score += 250;
                         // Usa colori dell'entità o genera nuovi contrastanti
@@ -1233,6 +1315,14 @@
                             player.shoeDetailColor = `hsl(${(h+180)%360}, 100%, 50%)`;
                         }
                         player.bubble = "Respira™"; player.bubbleTimer = 180; spawnParticles(en.x, en.y, player.shoeBaseColor);
+                    }
+                    if (en.type === 'orange_shoes' && en.active && Math.hypot(player.x-en.x, player.y-en.y) < 120) {
+                        player.hasOrangeShoes = true; player.hasShoes = false; player.hasSkates = false;
+                        en.active = false; en.hp = -1; SPEED = 24;
+                        score += 500;
+                        player.bubble = "la scarpa che sospira™"; player.bubbleTimer = 180; 
+                        spawnParticles(en.x, en.y, "#ffaa00", 30);
+                        playSound('powerup');
                     }
                     if (en.type === 'sunglasses' && en.active && Math.hypot(player.x-en.x, player.y-en.y) < 120) {
                         player.hasSunglasses = true; en.active = false; en.hp = -1;
@@ -1250,8 +1340,32 @@
                         parts++; 
                         spawnParticles(en.x, en.y, "#ffff00");
                     }
+                    if (en.type === 'fullmoon' && en.active && Math.hypot(player.x-en.x, player.y-en.y) < 120) {
+                        player.hasFullMoon = true; player.hasBloodMoon = false;
+                        en.active = false; en.hp = -1;
+                        const bgm = document.getElementById('bgm');
+                        const fullmoon_bgm = document.getElementById('fullmoon-bgm');
+                        if (bgm) { bgm.pause(); bgm.currentTime = 0; }
+                        if (fullmoon_bgm) { fullmoon_bgm.currentTime = 0; fullmoon_bgm.play(); }
+                        spawnParticles(en.x, en.y, "#ffffff", 20);
+                        playSound('powerup');
+                        player.bigMsgTimer = 180; player.bigMsgText = "FULL MOON RISES"; player.bigMsgColor = "#ffffff";
+                    }
+                    if (en.type === 'bloodmoon' && en.active && Math.hypot(player.x-en.x, player.y-en.y) < 120) {
+                        player.hasBloodMoon = true; player.hasFullMoon = false;
+                        en.active = false; en.hp = -1;
+                        const bgm = document.getElementById('bgm');
+                        const fullmoon_bgm = document.getElementById('fullmoon-bgm');
+                        if (bgm) { bgm.pause(); bgm.currentTime = 0; }
+                        if (fullmoon_bgm) { fullmoon_bgm.currentTime = 0; fullmoon_bgm.play(); }
+                        spawnParticles(en.x, en.y, "#ff0000", 20);
+                        playSound('powerup');
+                        player.bigMsgTimer = 180; player.bigMsgText = "BLOOD MOON RISES"; player.bigMsgColor = "#ff0000";
+                        player.bubble = "R.O.B.A.R.D.O. against the Humanity"; player.bubbleTimer = 180;
+                    }
                     // Culling: elimina solo chi è rimasto troppo indietro (oltre 2000px)
-                    if (player.x - en.x > 2000 && en.type !== 'mansion' && en.type !== 'jacket' && en.type !== 'skates') en.hp = -1;
+                    // Escludiamo la zona debug (x < 0) e i powerup fondamentali dal culling
+                    if (en.x > 0 && player.x - en.x > 2000 && en.type !== 'mansion' && en.type !== 'jacket' && en.type !== 'skates') en.hp = -1;
                 });
 
                 // Riduzione shakeScore normalizzata (fuori dal loop)
@@ -1321,7 +1435,7 @@
                                 }
                                 if (b.power < 110) b.dead = true; 
                                 
-                            } else if (['alpha', 'passerby', 'nerd', 'disguise', 'woman'].includes(en.type)) {
+                            } else if (['alpha', 'passerby', 'nerd', 'disguise', 'woman', 'pigeon'].includes(en.type)) {
                                 // Danno Umani (Dalla tabella: Nudo 0.5x, Fake 1.0x, Real 2.0x)
                                 if (b.melee) {
                                     let mult = player.hasJacket ? (player.isFake ? 1.0 : 2.0) : 0.5;
@@ -1346,6 +1460,15 @@
                                         }
                                     }
                                     if (b.power < 110) b.dead = true;
+                                } else if (player.hasBloodMoon) {
+                                    // Blood Moon Laser/Proiettile può uccidere chiunque
+                                    en.hp -= b.power;
+                                    en.vx = Math.sign(b.vx) * 15;
+                                    spawnParticles(en.x+30, en.y+40, "#ff0000", 6);
+                                    if (en.hp <= 0) {
+                                        en.state = 'dead'; en.attached = false; score += 200;
+                                        en.vx = 0; en.vy = 0;
+                                    }
                                 } else {
                                     b.dead = true; // Proiettili si fermano sempre su umani (non sono robot)
                                 }
@@ -1521,14 +1644,14 @@
                         player.vx *= 1.2; 
                         player.grounded = false; player.stretch = 1.3; 
                         player.spaceReleased = false;
-                        player.canDoubleJump = true;
+                        player.jumpCount = 1;
                         playSound('jump');
-                    } else if (player.hasShoes && player.canDoubleJump && player.spaceReleased) {
+                    } else if (player.spaceReleased && player.jumpCount < (player.hasOrangeShoes ? 3 : (player.hasShoes ? 2 : 1))) {
                         player.vy = JUMP_FORCE * 0.8;
-                        player.canDoubleJump = false;
+                        player.jumpCount++;
                         player.spaceReleased = false;
                         player.stretch = 1.5;
-                        spawnParticles(player.x+30, player.y+100, "#ffffff", 5);
+                        spawnParticles(player.x+30, player.y+100, player.hasOrangeShoes ? "#ffaa00" : "#ffffff", 10);
                         playSound('jump');
                     }
                 } else {
@@ -1602,13 +1725,18 @@
 
             player.maxX = Math.max(player.maxX || 400, player.x);
             camera.x = player.x - SCREEN_W/2;
-            if (camera.x < -2000) camera.x = -2000;
+            if (camera.x < -5000) camera.x = -5000;
             if (camera.x > WORLD_W - SCREEN_W) camera.x = WORLD_W - SCREEN_W;
             
-            // Muro invisibile basato sul punto massimo raggiunto (maxX)
-            let wallLimit = player.maxX - 4000;
-            if (player.x < wallLimit) { player.x = wallLimit; player.vx = 0; }
-            if (player.x < -3000) player.x = -3000;
+            // Muro invisibile basato sul punto massimo raggiunto
+            let wallLimit = player.maxX - 1000;
+            // Nel Livello 1 permettiamo di andare a sinistra per il debug ignorando il muro iniziale
+            if (currentLevel === 1 && player.x < 0) {
+                // Nessun blocco a sx se siamo in zona debug
+            } else {
+                if (player.x < wallLimit) { player.x = wallLimit; player.vx = 0; }
+            }
+            if (player.x < -5000) player.x = -5000;
             if (player.charging) { 
                 // AGGIORNAMENTO SGUARDO 4 DIREZIONI IN TEMPO REALE
                 let dx = (mousePos.x + camera.x) - (player.x + 30);
@@ -1810,10 +1938,37 @@
                     ctx.fillStyle = `rgb(${r},${g},${b})`;
                 } else ctx.fillStyle = skinColor;
             }
-            if (type === 'player') ctx.fillRect(14, 0, 34, 40); // Testa snellita sul retro (era 36)
-            else ctx.fillRect(10, 0, 40, 40);
             
-            if (type === 'player') {
+            if (type === 'player' && player.hasFullMoon) {
+                // TESTA DI POLLO (Versione Bianca/Rossa ispirata all'immagine)
+                ctx.fillStyle = "#ffffff"; ctx.fillRect(15, 5, 30, 40); // Retro Testa / Collo Bianco
+                ctx.fillStyle = "#ff4444"; ctx.fillRect(5, 10, 15, 30); // Faccia Rossa
+                
+                // Cresta (3-4 Picchi Rossi)
+                ctx.fillStyle = "#ff0000";
+                ctx.fillRect(8, -12, 8, 15); ctx.fillRect(20, -15, 10, 20); ctx.fillRect(34, -10, 8, 15);
+                
+                // Becco (Giallo)
+                ctx.fillStyle = "#ffcc00"; ctx.fillRect(-7, 18, 14, 10);
+                
+                // Occhio
+                ctx.fillStyle = "#000"; ctx.fillRect(10, 18, 4, 4);
+            } else if (type === 'player' && player.hasBloodMoon) {
+                // TESTA CYBERPUNK (Blood Moon)
+                ctx.fillStyle = "#222"; ctx.fillRect(14, 0, 34, 40); // Testa scura
+                ctx.fillStyle = "#ff0000"; 
+                ctx.fillRect(20, 15, 8, 4); ctx.fillRect(40, 15, 8, 4); // Occhi Rossi
+                ctx.save();
+                ctx.shadowBlur = 15; ctx.shadowColor = "#ff0000";
+                ctx.fillRect(20, 15, 8, 4); ctx.fillRect(40, 15, 8, 4); 
+                ctx.restore();
+                ctx.strokeStyle = "#444"; ctx.lineWidth = 2;
+                ctx.strokeRect(14, 0, 34, 40); // Bordi metallici
+            } else if (type === 'player') {
+                ctx.fillRect(14, 0, 34, 40); // Testa snellita sul retro
+            } else ctx.fillRect(10, 0, 40, 40);
+            
+            if (type === 'player' && !player.hasFullMoon && !player.hasBloodMoon) {
                 ctx.fillStyle = "#000"; ctx.fillRect(14, 0, 34, 10); // Capelli ridotti e riallineati
                 let mj = (extra.hasJacket !== undefined) ? extra.hasJacket : player.hasJacket;
                 if (!mj) {
@@ -2018,7 +2173,9 @@
                 ctx.fillStyle = c.shoes || "#000";
                 ctx.fillRect(7+m, 115, 24, 10); ctx.fillRect(29-m, 115, 24, 10);
                 ctx.restore(); ctx.restore(); return;
-            } else { ctx.fillStyle = "#000"; ctx.fillRect(10, 0, 40, 10); } // Capelli Player
+            } else if (type === 'player' && !player.hasFullMoon && !player.hasBloodMoon) { 
+                ctx.fillStyle = "#000"; ctx.fillRect(10, 0, 40, 10); 
+            } // Capelli Player
             
             // Busto / Giubbino (Riproprozionato)
             ctx.fillStyle = color;
@@ -2113,20 +2270,109 @@
                 ctx.setTransform(1, 0, 0, 1, 0, 0); 
                 ctx.translate(cx + 30, y + 45); 
                 ctx.rotate(player.punchAngle);
-                ctx.fillStyle = player.hasJacket ? player.jacketColor : "#444";
+                
+                // Colore Braccio
+                if (player.hasBloodMoon) ctx.fillStyle = "#777";
+                else if (player.hasFullMoon) ctx.fillStyle = "#fff";
+                else ctx.fillStyle = player.hasJacket ? player.jacketColor : "#444";
                 
                 // Portata dinamica: base + bonus carica (max 130px circa)
                 let maxReach = 60 + (player.punchPower * 0.7);
                 let reach = maxReach * (1 - player.punchTimer / 20);
                 
                 ctx.fillRect(0, -10, reach, 20); // Braccio
-                ctx.fillStyle = "#ffdbac";
-                ctx.fillRect(reach, -12, 15, 24); // Pugno
+                
+                // PUGNO / TENAGLIA
+                if (player.hasBloodMoon) {
+                    ctx.fillStyle = "#555";
+                    // Tenaglia (Claw)
+                    ctx.fillRect(reach, -15, 8, 30); // Base
+                    ctx.fillRect(reach + 8, -15, 15, 6); // Parte sopra
+                    ctx.fillRect(reach + 8, 9, 15, 6);  // Parte sotto
+                } else {
+                    ctx.fillStyle = player.hasFullMoon ? "#fff" : "#ffdbac";
+                    ctx.fillRect(reach, -12, 15, 24); // Pugno normale o bianco
+                }
                 ctx.restore();
             }
             ctx.restore(); // Restore crouch scaling
             ctx.restore(); // Restore main humanoid translation
         }
+
+    function drawPigeon(x, y, anim, state, dir) {
+        ctx.save();
+        ctx.translate(x - camera.x + 30, y + 110);
+        ctx.scale(dir, 1);
+        
+        let peckAngle = (state === 'pecking') ? 0.4 : 0;
+        let isFlying = state === 'flying' || state === 'flying_high' || state === 'landing';
+        let flap = isFlying ? Math.sin(gameTime * 0.8) * 20 : 0;
+        let bodyTilt = isFlying ? -0.2 : 0;
+        
+        // Se vola, inclina tutto il corpo in orizzontale
+        if (isFlying) {
+            ctx.rotate(-0.3);
+        }
+
+        // ZAMPE (Rosa/Rosse) - Scompaiono se vola
+        ctx.fillStyle = "#e91e63";
+        if (!isFlying) {
+            ctx.fillRect(-6, 8, 3, 10);
+            ctx.fillRect(2, 8, 3, 10);
+        }
+        
+        // CORPO (Grigio con Shading)
+        ctx.save();
+        ctx.rotate(peckAngle + bodyTilt);
+        ctx.fillStyle = "#9e9e9e";
+        ctx.fillRect(-15, -12, 30, 20); // Base corpo
+        ctx.fillStyle = "#757575";
+        ctx.fillRect(-15, 0, 30, 8); // Ombra sotto
+        
+        // ALI
+        ctx.fillStyle = "#888";
+        if (isFlying) {
+            // Ali spiegate (Sopra e Sotto)
+            ctx.fillRect(-10, -25 - flap, 25, 10); 
+            ctx.fillRect(-10, 5 + flap, 25, 10);
+        } else {
+            // Ala chiusa sul fianco
+            ctx.fillRect(-12, -8, 22, 12);
+            ctx.fillStyle = "#666"; ctx.fillRect(-8, -4, 18, 2); // Dettaglio piumaggio
+        }
+        ctx.restore();
+
+        // COLLO E TESTA (Si muovono con peckAngle)
+        ctx.save();
+        if (state === 'pecking') {
+            ctx.translate(10, -5);
+            ctx.rotate(0.5);
+        }
+        
+        // Collo Grigio scuro
+        ctx.fillStyle = "#616161";
+        ctx.fillRect(8, -25, 14, 20);
+        
+        // Iridescenza (Fasce Teal/Purple come da immagine)
+        ctx.fillStyle = "#00bfa5"; ctx.fillRect(8, -18, 14, 4); // Teal
+        ctx.fillStyle = "#7b1fa2"; ctx.fillRect(8, -14, 14, 4); // Purple
+        
+        // Testa
+        ctx.fillStyle = "#757575";
+        ctx.fillRect(6, -35, 20, 15);
+        
+        // Occhio (Nero con piccolo riflesso bianco)
+        ctx.fillStyle = "#000"; ctx.fillRect(18, -30, 4, 4);
+        ctx.fillStyle = "#fff"; ctx.fillRect(21, -30, 1, 1);
+        
+        // Becco (Giallo/Arancio corto)
+        ctx.fillStyle = "#ffb300";
+        ctx.fillRect(26, -24, 10, 5);
+        ctx.fillStyle = "#000"; ctx.fillRect(26, -22, 10, 1); // Linea bocca
+        
+        ctx.restore();
+        ctx.restore();
+    }
 
         function drawJacketIcon(ctx, x, y, color = "#ff4400") {
             ctx.save();
@@ -2524,8 +2770,19 @@
                     ctx.fillStyle = "#ffffaa";
                     let moonX = (SCREEN_W * 0.8 - camera.x * 0.02) % SCREEN_W;
                     if (moonX < 0) moonX += SCREEN_W;
-                    ctx.beginPath(); ctx.arc(moonX, 150, 80, 0, Math.PI*2); ctx.fill(); // Luna
-                    ctx.fillStyle = "#000511"; ctx.beginPath(); ctx.arc(moonX+30, 150, 70, 0, Math.PI*2); ctx.fill(); // Ombra Luna
+                    if (player.hasFullMoon) {
+                        ctx.shadowBlur = 40; ctx.shadowColor = "#ffffaa";
+                        ctx.beginPath(); ctx.arc(moonX, 150, 90, 0, Math.PI*2); ctx.fill(); // Luna Piena
+                        ctx.shadowBlur = 0;
+                    } else if (player.hasBloodMoon) {
+                        ctx.fillStyle = "#ff0000";
+                        ctx.shadowBlur = 40; ctx.shadowColor = "#ff0000";
+                        ctx.beginPath(); ctx.arc(moonX, 150, 90, 0, Math.PI*2); ctx.fill(); // Blood Moon
+                        ctx.shadowBlur = 0;
+                    } else {
+                        ctx.beginPath(); ctx.arc(moonX, 150, 80, 0, Math.PI*2); ctx.fill(); // Luna
+                        ctx.fillStyle = "#000511"; ctx.beginPath(); ctx.arc(moonX+30, 150, 70, 0, Math.PI*2); ctx.fill(); // Ombra Luna
+                    }
                     
                     // 1.5 CASTELLO ESTENSE (Landmark Unico - Parallasse 0.05x)
                     let castX = 1800 - camera.x * 0.05; 
@@ -3026,8 +3283,37 @@
                 }
                 else if (en.type === 'chip' && en.active) {
                     let sx = en.x - camera.x;
-                    ctx.fillStyle = "#004400"; ctx.fillRect(sx+10, en.y+20, 50, 20); // PCB
-                    ctx.fillStyle = "#ffaa00"; ctx.fillRect(sx+15, en.y+18, 5, 5); ctx.fillRect(sx+40, en.y+18, 5, 5); // Pin
+                    ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.fillRect(sx+5, en.y+35, 30, 4); // Ombra
+                    ctx.fillStyle = "#00ff00"; ctx.fillRect(sx+5, en.y+5, 30, 30); // Base Chip
+                    ctx.fillStyle = "#004400"; ctx.fillRect(sx+10, en.y+10, 20, 20); // Centro
+                }
+                else if (en.type === 'fullmoon' && en.active) {
+                    let sx = en.x - camera.x;
+                    ctx.fillStyle = "rgba(255,255,255,0.3)"; ctx.beginPath(); ctx.arc(sx+30, en.y+30, 25, 0, Math.PI*2); ctx.fill(); // Glow
+                    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(sx+30, en.y+30, 20, 0, Math.PI*2); ctx.fill(); // Luna
+                    ctx.fillStyle = "#ddd"; ctx.beginPath(); ctx.arc(sx+35, en.y+25, 5, 0, Math.PI*2); ctx.fill(); // Cratere
+                }
+                else if (en.type === 'bloodmoon' && en.active) {
+                    let sx = en.x - camera.x;
+                    ctx.fillStyle = "rgba(255,0,0,0.3)"; ctx.beginPath(); ctx.arc(sx+30, en.y+30, 25, 0, Math.PI*2); ctx.fill(); // Glow
+                    ctx.fillStyle = "#ff0000"; ctx.beginPath(); ctx.arc(sx+30, en.y+30, 20, 0, Math.PI*2); ctx.fill(); // Luna
+                    ctx.fillStyle = "#800000"; ctx.beginPath(); ctx.arc(sx+35, en.y+25, 5, 0, Math.PI*2); ctx.fill(); // Cratere
+                }
+                else if (en.type === 'orange_shoes' && en.active) {
+                    let sx = en.x - camera.x;
+                    ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.fillRect(sx+10, en.y+32, 40, 4); 
+                    ctx.fillStyle = "#ff8800"; ctx.fillRect(sx+10, en.y+5, 40, 25);
+                    ctx.fillStyle = "#fff"; ctx.fillRect(sx+12, en.y+8, 10, 4);
+                }
+                else if (en.type === 'pigeon') {
+                    drawPigeon(en.x, en.y, gameTime * 0.1, en.state, en.dir);
+                }
+                else if (en.type === 'pigeon') {
+                    drawPigeon(en.x, en.y, gameTime * 0.1, en.state, en.dir);
+                }
+                else if (en.type === 'poop') {
+                    ctx.fillStyle = "#fff";
+                    ctx.fillRect(en.x - camera.x, en.y, 8, 8);
                 }
                 else if (en.type === 'mansion') { 
                     let mx = en.x - camera.x;
@@ -3099,6 +3385,9 @@
                     let color = en.attached ? "#ffdbac" : (en.stun > 0 ? "#aaa" : "#ff00ff");
                     drawHumanoid(en.x, en.y, color, 'woman', gameTime*0.1, {inv: en.inv, attached: en.attached, colors: en.colors, dir: en.dir, state: en.state});
                     if (en.bubbleTimer > 0) { drawBubble(en.x, en.y, en.bubble); }
+                }
+                else if (en.type === 'pigeon') {
+                    drawPigeon(en.x, en.y, gameTime * 0.1, en.state, en.dir);
                 }
                 else if (['alpha', 'passerby', 'nerd', 'disguise'].includes(en.type)) {
                     drawHumanoid(en.x, en.y, "#444", en.type, gameTime*0.1, {colors: en.colors, dir: en.dir, state: en.state});
@@ -3189,6 +3478,11 @@
             bullets.forEach(b => { 
                 if (b.melee) {
                     // Cerchio rimosso visivamente come richiesto
+                } else if (b.isLaser) {
+                    ctx.strokeStyle = "#ff0000"; ctx.lineWidth = 10;
+                    ctx.beginPath(); ctx.moveTo(b.x-camera.x, b.y); ctx.lineTo(b.x-camera.x - Math.sign(b.vx)*80, b.y); ctx.stroke();
+                    ctx.strokeStyle = "#fff"; ctx.lineWidth = 4;
+                    ctx.beginPath(); ctx.moveTo(b.x-camera.x, b.y); ctx.lineTo(b.x-camera.x - Math.sign(b.vx)*80, b.y); ctx.stroke();
                 } else {
                     ctx.fillStyle = b.color;
                     ctx.beginPath(); ctx.arc(b.x-camera.x, b.y, 10 + b.power/10, 0, Math.PI*2); ctx.fill();
@@ -3252,6 +3546,19 @@
                 ctx.fillText(t, SCREEN_W/2, SCREEN_H/2);
                 ctx.restore();
             }
+            // BIG MESSAGE OVERLAY (FullMoon / BloodMoon)
+            if (player.bigMsgTimer > 0) {
+                player.bigMsgTimer--;
+                ctx.save();
+                ctx.textAlign = "center";
+                ctx.font = "bold 120px VT323";
+                let alpha = Math.min(1, player.bigMsgTimer / 60);
+                ctx.fillStyle = player.bigMsgColor;
+                ctx.globalAlpha = alpha;
+                ctx.shadowBlur = 30; ctx.shadowColor = "#000";
+                ctx.fillText(player.bigMsgText, SCREEN_W/2, SCREEN_H/2 - 100);
+                ctx.restore();
+            }
             // TUTORIAL OVERLAY
             if (player.tutorialTimer > 0) {
                 ctx.save();
@@ -3307,6 +3614,18 @@
             draw();
             requestAnimationFrame(loop);
         }
+        // GESTIONE FINE EFFETTO MOON (Reset quando finisce la track)
+        document.getElementById('fullmoon-bgm').addEventListener('ended', () => {
+            player.hasFullMoon = false;
+            player.hasBloodMoon = false;
+            // Ripristina musica standard
+            const bgm = document.getElementById('bgm');
+            if (bgm) {
+                bgm.currentTime = 0;
+                bgm.play().catch(e => {});
+            }
+        });
+
         loop();
     </script>
 </body>
